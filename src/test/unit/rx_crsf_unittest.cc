@@ -30,11 +30,10 @@ extern "C" {
     #include "common/utils.h"
 
     #include "io/serial.h"
-	
+
     #include "rx/rx.h"
     #include "rx/crsf.h"
 
-    #include "telemetry/crsf.h"
     #include "telemetry/msp_shared.h"
 
     void crsfDataReceive(uint16_t c);
@@ -42,11 +41,14 @@ extern "C" {
     uint8_t crsfFrameStatus(void);
     uint16_t crsfReadRawRC(const rxRuntimeConfig_t *rxRuntimeConfig, uint8_t chan);
 
-    bool sendMspReply(mspPackage_t *package, uint8_t payloadSize, mspResponseFnPtr responseFn);
-    void scheduleMspResponse(mspPackage_t *package, uint8_t destAddr, uint8_t originAddr);
     extern bool crsfFrameDone;
     extern crsfFrame_t crsfFrame;
     extern uint32_t crsfChannelData[CRSF_MAX_CHANNEL];
+    extern uint8_t crsfMspRxBuffer[CRSF_MSP_RX_BUF_SIZE];
+    extern int8_t crsfMspTxBuffer[CRSF_MSP_TX_BUF_SIZE];
+    extern mspPacket_t crsfMspRequest;
+    extern mspPacket_t crsfMspResponse;
+    extern mspPackage_t mspPackage;
 
     uint32_t dummyTimeUs;
 }
@@ -198,6 +200,25 @@ TEST(CrossFireTest, TestCrsfFrameStatusUnpacking)
     EXPECT_EQ(0, crsfChannelData[15]);
 }
 
+const uint8_t crsfMspNoCRC[] = {
+    0x00,0x22,0x33,0xEE,0x0D,0x30,0x00,0x44,0x44,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0xFF,
+    0x00,0x22,0x33,0xEE,0x0D,0x30,0x00,0x44,0x44,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0xFF   
+};
+
+TEST(CrossFireTest, TestCrsfMspReceive)
+{
+    const crsfFrame_t *framePtr = (const crsfFrame_t*)crsfMspNoCRC;
+    crsfFrame = *framePtr;
+    unsigned int s = sizeof(crsfFrame_t);
+    const uint8_t *pMspData = crsfMspNoCRC;
+    crsfFrameDone = false;
+    for (unsigned int ii = 0; ii < s; ++ii) {
+        crsfDataReceive(*pMspData++);
+    }
+    EXPECT_EQ(true, crsfFrameDone);
+}
+
+
 const uint8_t capturedData[] = {
     0x00,0x18,0x16,0xBD,0x08,0x9F,0xF4,0xAE,0xF7,0xBD,0xEF,0x7D,0xEF,0xFB,0xAD,0xFD,0x45,0x2B,0x5A,0x01,0x00,0x00,0x00,0x00,0x00,0x6C,
     0x00,0x18,0x16,0xBD,0x08,0x9F,0xF4,0xAA,0xF7,0xBD,0xEF,0x7D,0xEF,0xFB,0xAD,0xFD,0x45,0x2B,0x5A,0x01,0x00,0x00,0x00,0x00,0x00,0x94,
@@ -285,4 +306,12 @@ serialPortConfig_t *findSerialPortConfig(serialPortFunction_e ) {return NULL;}
 void serialWriteBuf(serialPort_t *, const uint8_t *, int) {}
 bool telemetryCheckRxPortShared(const serialPortConfig_t *) {return false;}
 serialPort_t *telemetrySharedPort = NULL;
+void scheduleMspResponse(mspPackage_t *package, uint8_t destAddr, uint8_t originAddr) {
+  UNUSED(package);
+  UNUSED(destAddr);
+  UNUSED(originAddr);
+};
+bool handleMspFrame(mspPackage_t *mspPackage) { 
+  UNUSED(mspPackage);
+  return false; }
 }

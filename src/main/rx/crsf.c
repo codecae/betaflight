@@ -63,12 +63,12 @@ static uint32_t crsfFrameStartAt = 0;
 static uint8_t telemetryBuf[CRSF_FRAME_SIZE_MAX];
 static uint8_t telemetryBufLen = 0;
 
-STATIC_UNIT_TESTED uint8_t crsfMspRxBuffer[CRSF_MSP_RX_BUF_SIZE];
+/*STATIC_UNIT_TESTED uint8_t crsfMspRxBuffer[CRSF_MSP_RX_BUF_SIZE];
 STATIC_UNIT_TESTED uint8_t crsfMspTxBuffer[CRSF_MSP_TX_BUF_SIZE];
 STATIC_UNIT_TESTED mspPacket_t crsfMspRequest;
 STATIC_UNIT_TESTED mspPacket_t crsfMspResponse;
 STATIC_UNIT_TESTED mspPackage_t mspPackage;
-
+*/
 /*
  * CRSF protocol
  *
@@ -188,7 +188,13 @@ STATIC_UNIT_TESTED uint8_t crsfFrameStatus(void)
             crsfChannelData[14] = rcChannels->chan14;
             crsfChannelData[15] = rcChannels->chan15;
             return RX_FRAME_COMPLETE;
-        } else if (crsfFrame.frame.type == CRSF_FRAMETYPE_MSP) {
+        } else if (crsfFrame.frame.type == CRSF_FRAMETYPE_DEVICE_PING) {
+            uint8_t *destAddr = &crsfFrame.frame.payload[0];
+            uint8_t *originAddr = &crsfFrame.frame.payload[1];
+            scheduleDeviceInfoResponse(destAddr, originAddr);
+            return RX_FRAME_COMPLETE;
+        }
+        /*} else if (crsfFrame.frame.type == CRSF_FRAMETYPE_MSP) {
             uint8_t destAddr = crsfFrame.frame.payload[0];
             uint8_t originAddr = crsfFrame.frame.payload[1];
             if ((destAddr == CRSF_ADDRESS_BETAFLIGHT) && (originAddr == CRSF_ADDRESS_LUA)){
@@ -202,8 +208,7 @@ STATIC_UNIT_TESTED uint8_t crsfFrameStatus(void)
                     scheduleMspResponse(&mspPackage, destAddr, originAddr);
                 }
             }
-            return RX_FRAME_COMPLETE;
-        }
+            return RX_FRAME_COMPLETE;*/
     }
     return RX_FRAME_PENDING;
 }

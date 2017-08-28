@@ -26,7 +26,8 @@ typedef enum {
     CRSF_FRAME_BATTERY_SENSOR,
     CRSF_FRAME_FLIGHT_MODE,
     CRSF_FRAME_GPS,
-    CRSF_FRAME_MSP
+    CRSF_FRAME_DEVICE_PING,
+    CRSF_FRAME_DEVICE_INFO
 } crsfFrameType_e;
 
 typedef struct crsfExtMspPackage_s {
@@ -37,7 +38,9 @@ typedef struct crsfExtMspPackage_s {
 
 void initCrsfTelemetry(void);
 bool checkCrsfTelemetryState(void);
-void handleCrsfTelemetry(timeUs_t currentTimeUs);
-void scheduleMspResponse(mspPackage_t *package, uint8_t destAddr, uint8_t originAddr);
+void scheduleDevicePingResponse(uint8_t *originAddr);
+void scheduleDeviceInfoResponse(uint8_t *destAddr, uint8_t *originAddr);
+/*void handleCrsfTelemetry(timeUs_t currentTimeUs);
+void scheduleMspResponse(mspPackage_t *package, uint8_t destAddr, uint8_t originAddr); */
 
 int getCrsfFrame(uint8_t *frame, crsfFrameType_e frameType);

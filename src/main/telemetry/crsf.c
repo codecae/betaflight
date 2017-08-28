@@ -31,6 +31,7 @@
 
 #include "common/crc.h"
 #include "common/maths.h"
+#include "common/printf.h"
 #include "common/streambuf.h"
 #include "common/utils.h"
 
@@ -56,11 +57,16 @@
 #include "fc/config.h"
 
 #define CRSF_CYCLETIME_US                   100000 // 100ms, 10 Hz
+#define CRSF_DEVICEINFO_VERSION             0x01
+#define CRSF_DEVICEINFO_PARAMETER_COUNT     255
 
 static bool crsfTelemetryEnabled;
 static uint8_t crsfFrame[CRSF_FRAME_SIZE_MAX];
-static crsfExtMspPackage_t extMspPackage;
-static bool mspReplyPending = false;
+//static crsfExtMspPackage_t extMspPackage;
+//static bool mspReplyPending = false;
+static bool deviceInfoPending = false;
+static uint8_t *crsfExtFrameDest;
+static uint8_t *crsfExtFrameOrigin;
 
 static void crsfInitializeFrame(sbuf_t *dst, uint8_t originAddr)
 {
@@ -226,6 +232,41 @@ void crsfFrameFlightMode(sbuf_t *dst)
     *lengthPtr = sbufPtr(dst) - lengthPtr;
 }
 
+void scheduleDeviceInfoResponse(uint8_t *destAddr, uint8_t *originAddr) {
+    crsfExtFrameDest = originAddr;
+    crsfExtFrameOrigin = destAddr;
+    deviceInfoPending = true;
+}
+
+/*
+0x29 Device Info
+Payload:
+uint8_t     Destination
+uint8_t     Origin
+char[]      Device Name ( Null terminated string )
+uint32_t    Null Bytes
+uint32_t    Null Bytes
+uint32_t    Null Bytes
+uint8_t     255 (Max MSP Parameter)
+uint8_t     0x01 (Parameter version 1)
+*/
+void crsfFrameDeviceInfo(sbuf_t *dst) {
+    deviceInfoPending = false;
+
+    char buff[23];
+    tfp_sprintf(buff,  "%s %s: %s", FC_FIRMWARE_NAME, FC_VERSION_STRING, systemConfig()->boardIdentifier);
+
+    sbufWriteU8(dst, *crsfExtFrameDest);
+    sbufWriteU8(dst, *crsfExtFrameOrigin);
+    sbufWriteString(dst, buff);
+    sbufWriteU8(dst, '\0');
+    for (unsigned int ii=0; ii<12; ii++) {
+        sbufWriteU8(dst, 0x00);
+    }
+    sbufWriteU8(dst, CRSF_DEVICEINFO_PARAMETER_COUNT);
+    sbufWriteU8(dst, CRSF_DEVICEINFO_VERSION);
+}
+
 #define BV(x)  (1 << (x)) // bit value
 
 // schedule array to decide how often each type of frame is sent
@@ -233,7 +274,7 @@ void crsfFrameFlightMode(sbuf_t *dst)
 static uint8_t crsfScheduleCount;
 static uint8_t crsfSchedule[CRSF_SCHEDULE_COUNT_MAX];
 
-void scheduleMspResponse(mspPackage_t *package, uint8_t destAddr, uint8_t originAddr) {
+/*void scheduleMspResponse(mspPackage_t *package, uint8_t destAddr, uint8_t originAddr) {
     extMspPackage.destAddr = destAddr;
     extMspPackage.originAddr = originAddr;
     extMspPackage.mspPackage = package;
@@ -259,7 +300,8 @@ void crsfSendMspResponse(uint8_t *packet)
         sbufWriteU8(dst, sbufReadU8(msp));
     }
     crsfFinalize(dst);
-}
+ }
+*/
 
 static void processCrsf(void)
 {
@@ -291,11 +333,16 @@ static void processCrsf(void)
         crsfFinalize(dst);
     }
 #endif
-    if (currentSchedule & BV(CRSF_FRAME_MSP)) {
+    if (currentSchedule & BV(CRSF_FRAME_DEVICE_INFO)) {
+        crsfInitializeFrame(dst, CRSF_ADDRESS_BROADCAST);
+        crsfFrameDeviceInfo(dst);
+        crsfFinalize(dst);
+    }
+   /* if (currentSchedule & BV(CRSF_FRAME_MSP)) {
         if (mspReplyPending) {
             mspReplyPending = sendMspReply(extMspPackage.mspPackage, CRSF_PAYLOAD_SIZE_MAX-2, &crsfSendMspResponse);
         }
-    }
+    }*/
     crsfScheduleIndex = (crsfScheduleIndex + 1) % crsfScheduleCount;
 }
 
@@ -311,7 +358,7 @@ void initCrsfTelemetry(void)
     if (feature(FEATURE_GPS)) {
         crsfSchedule[index++] = BV(CRSF_FRAME_GPS);
     }
-    crsfSchedule[index++] = BV(CRSF_FRAME_MSP);
+    crsfSchedule[index++] = BV(CRSF_FRAME_DEVICE_INFO);
     crsfScheduleCount = (uint8_t)index;
 
  }
