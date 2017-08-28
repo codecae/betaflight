@@ -256,6 +256,9 @@ void crsfFrameDeviceInfo(sbuf_t *dst) {
     char buff[23];
     tfp_sprintf(buff,  "%s %s: %s", FC_FIRMWARE_NAME, FC_VERSION_STRING, systemConfig()->boardIdentifier);
 
+    uint8_t *lengthPtr = sbufPtr(dst);
+    sbufWriteU8(dst, 0);
+    sbufWriteU8(dst, CRSF_FRAMETYPE_DEVICE_INFO);
     sbufWriteU8(dst, *crsfExtFrameDest);
     sbufWriteU8(dst, *crsfExtFrameOrigin);
     sbufWriteString(dst, buff);
@@ -265,6 +268,7 @@ void crsfFrameDeviceInfo(sbuf_t *dst) {
     }
     sbufWriteU8(dst, CRSF_DEVICEINFO_PARAMETER_COUNT);
     sbufWriteU8(dst, CRSF_DEVICEINFO_VERSION);
+    *lengthPtr = sbufPtr(dst) - lengthPtr;
 }
 
 #define BV(x)  (1 << (x)) // bit value
