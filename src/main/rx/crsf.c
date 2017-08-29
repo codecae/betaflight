@@ -33,6 +33,7 @@
 
 #include "drivers/serial.h"
 #include "drivers/serial_uart.h"
+#include "drivers/system.h"
 #include "drivers/time.h"
 
 #include "io/serial.h"
@@ -55,7 +56,6 @@
 
 STATIC_UNIT_TESTED bool crsfFrameDone = false;
 STATIC_UNIT_TESTED crsfFrame_t crsfFrame;
-
 STATIC_UNIT_TESTED uint32_t crsfChannelData[CRSF_MAX_CHANNEL];
 
 static serialPort_t *serialPort;
@@ -63,12 +63,12 @@ static uint32_t crsfFrameStartAt = 0;
 static uint8_t telemetryBuf[CRSF_FRAME_SIZE_MAX];
 static uint8_t telemetryBufLen = 0;
 
-/*STATIC_UNIT_TESTED uint8_t crsfMspRxBuffer[CRSF_MSP_RX_BUF_SIZE];
+STATIC_UNIT_TESTED uint8_t crsfMspRxBuffer[CRSF_MSP_RX_BUF_SIZE];
 STATIC_UNIT_TESTED uint8_t crsfMspTxBuffer[CRSF_MSP_TX_BUF_SIZE];
 STATIC_UNIT_TESTED mspPacket_t crsfMspRequest;
 STATIC_UNIT_TESTED mspPacket_t crsfMspResponse;
 STATIC_UNIT_TESTED mspPackage_t mspPackage;
-*/
+
 /*
  * CRSF protocol
  *
@@ -188,16 +188,13 @@ STATIC_UNIT_TESTED uint8_t crsfFrameStatus(void)
             crsfChannelData[14] = rcChannels->chan14;
             crsfChannelData[15] = rcChannels->chan15;
             return RX_FRAME_COMPLETE;
-        } else if (crsfFrame.frame.type == CRSF_FRAMETYPE_DEVICE_PING) {
+        } else {
             uint8_t *destAddr = &crsfFrame.frame.payload[0];
             uint8_t *originAddr = &crsfFrame.frame.payload[1];
-            scheduleDeviceInfoResponse(destAddr, originAddr);
-            return RX_FRAME_COMPLETE;
-        }
-        /*} else if (crsfFrame.frame.type == CRSF_FRAMETYPE_MSP) {
-            uint8_t destAddr = crsfFrame.frame.payload[0];
-            uint8_t originAddr = crsfFrame.frame.payload[1];
-            if ((destAddr == CRSF_ADDRESS_BETAFLIGHT) && (originAddr == CRSF_ADDRESS_LUA)){
+            if (crsfFrame.frame.type == CRSF_FRAMETYPE_DEVICE_PING) {
+                scheduleDeviceInfoResponse(destAddr, originAddr);
+                return RX_FRAME_COMPLETE;
+            } else if (crsfFrame.frame.type == CRSF_FRAMETYPE_MSP_REQ) {                
                 mspPackage.requestBuffer = crsfMspRxBuffer;
                 mspPackage.responseBuffer = crsfMspTxBuffer;
                 mspPackage.requestPacket = &crsfMspRequest;
@@ -207,8 +204,9 @@ STATIC_UNIT_TESTED uint8_t crsfFrameStatus(void)
                 if(handleMspFrame(&mspPackage)) {
                     scheduleMspResponse(&mspPackage, destAddr, originAddr);
                 }
+                return RX_FRAME_COMPLETE;
             }
-            return RX_FRAME_COMPLETE;*/
+        } 
     }
     return RX_FRAME_PENDING;
 }
@@ -234,7 +232,7 @@ void crsfRxWriteTelemetryData(const void *data, int len)
     telemetryBufLen = len;
 }
 
-void crsfRxSendTelemetryData(void)
+bool crsfRxSendTelemetryData(void)
 {
     // if there is telemetry data to write
     if (telemetryBufLen > 0) {
@@ -244,12 +242,14 @@ void crsfRxSendTelemetryData(void)
             const uint32_t timeSinceStartOfFrame = micros() - crsfFrameStartAt;
             if ((timeSinceStartOfFrame < CRSF_TIME_NEEDED_PER_FRAME_US) ||
                 (timeSinceStartOfFrame > CRSF_TIME_BETWEEN_FRAMES_US - CRSF_TIME_NEEDED_PER_FRAME_US)) {
-                return;
+                return false;
             }
         }
         serialWriteBuf(serialPort, telemetryBuf, telemetryBufLen);
         telemetryBufLen = 0; // reset telemetry buffer
+        return true;
     }
+    return false;
 }
 
 bool crsfRxInit(const rxConfig_t *rxConfig, rxRuntimeConfig_t *rxRuntimeConfig)

@@ -22,8 +22,8 @@
 #define CRSF_PORT_MODE          MODE_RXTX
 
 #define CRSF_MAX_CHANNEL        16
-#define CRSF_MSP_RX_BUF_SIZE 64
-#define CRSF_MSP_TX_BUF_SIZE 256
+#define CRSF_MSP_RX_BUF_SIZE 128
+#define CRSF_MSP_TX_BUF_SIZE 128
 
 typedef enum {
     CRSF_FRAMETYPE_GPS = 0x02,
@@ -33,7 +33,10 @@ typedef enum {
     CRSF_FRAMETYPE_ATTITUDE = 0x1E,
     CRSF_FRAMETYPE_FLIGHT_MODE = 0x21,
     CRSF_FRAMETYPE_DEVICE_PING = 0x28,
-    CRSF_FRAMETYPE_DEVICE_INFO = 0x29
+    CRSF_FRAMETYPE_DEVICE_INFO = 0x29,
+    CRSF_FRAMETYPE_MSP_REQ = 0x94,   // response request using msp sequence as command
+    CRSF_FRAMETYPE_MSP_RESP = 0x95,  // reply with 60 byte chunked binary
+    CRSF_FRAMETYPE_MSP_WRITE = 0x96  // write with 60 byte chunked binary 
 } crsfFrameTypes_e;
 
 enum {
@@ -42,7 +45,7 @@ enum {
     CRSF_FRAME_LINK_STATISTICS_PAYLOAD_SIZE = 10,
     CRSF_FRAME_RC_CHANNELS_PAYLOAD_SIZE = 22, // 11 bits per channel * 16 channels = 22 bytes.
     CRSF_FRAME_ATTITUDE_PAYLOAD_SIZE = 6,
-    CRSF_FRAME_MSP_PAYLOAD_SIZE = 30,
+    CRSF_FRAME_MSP_PAYLOAD_SIZE = 56,
     CRSF_FRAME_LENGTH_ADDRESS = 1, // length of ADDRESS field
     CRSF_FRAME_LENGTH_FRAMELENGTH = 1, // length of FRAMELENGTH field
     CRSF_FRAME_LENGTH_TYPE = 1, // length of TYPE field
@@ -64,7 +67,7 @@ enum {
     CRSF_ADDRESS_CRSF_TRANSMITTER = 0xEE
 };
 
-#define CRSF_PAYLOAD_SIZE_MAX   62 // !!TODO needs checking
+#define CRSF_PAYLOAD_SIZE_MAX   60 // !!TODO needs checking
 #define CRSF_FRAME_SIZE_MAX     (CRSF_PAYLOAD_SIZE_MAX + 4)
 
 typedef struct crsfFrameDef_s {
@@ -80,7 +83,7 @@ typedef union crsfFrame_u {
 } crsfFrame_t;
 
 void crsfRxWriteTelemetryData(const void *data, int len);
-void crsfRxSendTelemetryData(void);
+bool crsfRxSendTelemetryData(void);
 
 struct rxConfig_s;
 struct rxRuntimeConfig_s;

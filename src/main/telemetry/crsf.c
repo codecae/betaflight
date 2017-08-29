@@ -61,12 +61,11 @@
 #define CRSF_DEVICEINFO_PARAMETER_COUNT     255
 
 static bool crsfTelemetryEnabled;
+static bool deviceInfoReplyPending;
 static uint8_t crsfFrame[CRSF_FRAME_SIZE_MAX];
-//static crsfExtMspPackage_t extMspPackage;
-//static bool mspReplyPending = false;
-static bool deviceInfoPending = false;
 static uint8_t *crsfExtFrameDest;
 static uint8_t *crsfExtFrameOrigin;
+static crsfExtMspPackage_t extMspPackage;
 
 static void crsfInitializeFrame(sbuf_t *dst, uint8_t originAddr)
 {
@@ -235,7 +234,7 @@ void crsfFrameFlightMode(sbuf_t *dst)
 void scheduleDeviceInfoResponse(uint8_t *destAddr, uint8_t *originAddr) {
     crsfExtFrameDest = originAddr;
     crsfExtFrameOrigin = destAddr;
-    deviceInfoPending = true;
+    deviceInfoReplyPending = true;
 }
 
 /*
@@ -251,10 +250,9 @@ uint8_t     255 (Max MSP Parameter)
 uint8_t     0x01 (Parameter version 1)
 */
 void crsfFrameDeviceInfo(sbuf_t *dst) {
-    deviceInfoPending = false;
 
     char buff[23];
-    tfp_sprintf(buff,  "%s %s: %s", FC_FIRMWARE_NAME, FC_VERSION_STRING, systemConfig()->boardIdentifier);
+    tfp_sprintf(buff, "%s %s: %s", FC_FIRMWARE_NAME, FC_VERSION_STRING, systemConfig()->boardIdentifier);
 
     uint8_t *lengthPtr = sbufPtr(dst);
     sbufWriteU8(dst, 0);
@@ -278,7 +276,7 @@ void crsfFrameDeviceInfo(sbuf_t *dst) {
 static uint8_t crsfScheduleCount;
 static uint8_t crsfSchedule[CRSF_SCHEDULE_COUNT_MAX];
 
-/*void scheduleMspResponse(mspPackage_t *package, uint8_t destAddr, uint8_t originAddr) {
+void scheduleMspResponse(mspPackage_t *package, uint8_t *destAddr, uint8_t *originAddr) {
     extMspPackage.destAddr = destAddr;
     extMspPackage.originAddr = originAddr;
     extMspPackage.mspPackage = package;
@@ -297,15 +295,14 @@ void crsfSendMspResponse(uint8_t *packet)
 
     crsfInitializeFrame(dst, CRSF_ADDRESS_BROADCAST);
     sbufWriteU8(dst, CRSF_FRAME_MSP_PAYLOAD_SIZE + CRSF_FRAME_LENGTH_TYPE_CRC);
-    sbufWriteU8(dst, CRSF_FRAMETYPE_MSP);
-    sbufWriteU8(dst, extMspPackage.originAddr);
-    sbufWriteU8(dst, extMspPackage.destAddr);
+    sbufWriteU8(dst, CRSF_FRAMETYPE_MSP_RESP);
+    sbufWriteU8(dst, *extMspPackage.originAddr);
+    sbufWriteU8(dst, *extMspPackage.destAddr);
     while (sbufBytesRemaining(msp)) {
         sbufWriteU8(dst, sbufReadU8(msp));
     }
     crsfFinalize(dst);
  }
-*/
 
 static void processCrsf(void)
 {
@@ -337,16 +334,17 @@ static void processCrsf(void)
         crsfFinalize(dst);
     }
 #endif
-    if (currentSchedule & BV(CRSF_FRAME_DEVICE_INFO)) {
+    if ((currentSchedule & BV(CRSF_FRAME_DEVICE_INFO)) && deviceInfoReplyPending) {
         crsfInitializeFrame(dst, CRSF_ADDRESS_BROADCAST);
         crsfFrameDeviceInfo(dst);
         crsfFinalize(dst);
+        deviceInfoReplyPending = false;
     }
-   /* if (currentSchedule & BV(CRSF_FRAME_MSP)) {
-        if (mspReplyPending) {
+    if (currentSchedule & BV(CRSF_FRAME_MSP_REQUEST)) {
+         if (mspReplyPending) {
             mspReplyPending = sendMspReply(extMspPackage.mspPackage, CRSF_PAYLOAD_SIZE_MAX-2, &crsfSendMspResponse);
         }
-    }*/
+    }
     crsfScheduleIndex = (crsfScheduleIndex + 1) % crsfScheduleCount;
 }
 
@@ -355,6 +353,9 @@ void initCrsfTelemetry(void)
     // check if there is a serial port open for CRSF telemetry (ie opened by the CRSF RX)
     // and feature is enabled, if so, set CRSF telemetry enabled
     crsfTelemetryEnabled = crsfRxIsActive();
+
+    deviceInfoReplyPending = false;
+    
     int index = 0;
     crsfSchedule[index++] = BV(CRSF_FRAME_ATTITUDE);
     crsfSchedule[index++] = BV(CRSF_FRAME_BATTERY_SENSOR);
@@ -363,6 +364,7 @@ void initCrsfTelemetry(void)
         crsfSchedule[index++] = BV(CRSF_FRAME_GPS);
     }
     crsfSchedule[index++] = BV(CRSF_FRAME_DEVICE_INFO);
+    crsfSchedule[index++] = BV(CRSF_FRAME_MSP_REQUEST);
     crsfScheduleCount = (uint8_t)index;
 
  }
