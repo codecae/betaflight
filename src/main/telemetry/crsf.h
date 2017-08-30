@@ -30,18 +30,11 @@ typedef enum {
     CRSF_FRAME_MSP_REQUEST
 } crsfFrameType_e;
 
-typedef struct crsfExtMspPackage_s {
-    uint8_t *destAddr;
-    uint8_t *originAddr;
-    mspPackage_t *mspPackage;
-} crsfExtMspPackage_t;
-
 void initCrsfTelemetry(void);
 bool checkCrsfTelemetryState(void);
-void scheduleDevicePingResponse(uint8_t *originAddr);
-void scheduleDeviceInfoResponse(uint8_t *destAddr, uint8_t *originAddr);
 void handleCrsfTelemetry(timeUs_t currentTimeUs);
-void scheduleMspResponse(mspPackage_t *package, uint8_t *destAddr, uint8_t *originAddr); 
 void handleCrsfTelemetry(timeUs_t currentTimeUs);
+void scheduleDeviceInfoResponse();
+void scheduleMspResponse(mspPackage_t *package); 
 
 int getCrsfFrame(uint8_t *frame, crsfFrameType_e frameType);

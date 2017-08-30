@@ -64,9 +64,7 @@ static bool crsfTelemetryEnabled;
 static bool deviceInfoReplyPending;
 static bool mspReplyPending;
 static uint8_t crsfFrame[CRSF_FRAME_SIZE_MAX];
-static uint8_t *crsfExtFrameDest;
-static uint8_t *crsfExtFrameOrigin;
-static crsfExtMspPackage_t extMspPackage;
+static mspPackage_t *mspPackage;
 
 static void crsfInitializeFrame(sbuf_t *dst, uint8_t originAddr)
 {
@@ -232,9 +230,7 @@ void crsfFrameFlightMode(sbuf_t *dst)
     *lengthPtr = sbufPtr(dst) - lengthPtr;
 }
 
-void scheduleDeviceInfoResponse(uint8_t *destAddr, uint8_t *originAddr) {
-    crsfExtFrameDest = originAddr;
-    crsfExtFrameOrigin = destAddr;
+void scheduleDeviceInfoResponse() {
     deviceInfoReplyPending = true;
 }
 
@@ -252,14 +248,14 @@ uint8_t     0x01 (Parameter version 1)
 */
 void crsfFrameDeviceInfo(sbuf_t *dst) {
 
-    char buff[23];
+    char buff[30];
     tfp_sprintf(buff, "%s %s: %s", FC_FIRMWARE_NAME, FC_VERSION_STRING, systemConfig()->boardIdentifier);
 
     uint8_t *lengthPtr = sbufPtr(dst);
     sbufWriteU8(dst, 0);
     sbufWriteU8(dst, CRSF_FRAMETYPE_DEVICE_INFO);
-    sbufWriteU8(dst, *crsfExtFrameDest);
-    sbufWriteU8(dst, *crsfExtFrameOrigin);
+    sbufWriteU8(dst, CRSF_ADDRESS_RADIO_TRANSMITTER);
+    sbufWriteU8(dst, CRSF_ADDRESS_BETAFLIGHT);
     sbufWriteString(dst, buff);
     sbufWriteU8(dst, '\0');
     for (unsigned int ii=0; ii<12; ii++) {
@@ -277,34 +273,30 @@ void crsfFrameDeviceInfo(sbuf_t *dst) {
 static uint8_t crsfScheduleCount;
 static uint8_t crsfSchedule[CRSF_SCHEDULE_COUNT_MAX];
 
-void scheduleMspResponse(mspPackage_t *package, uint8_t *destAddr, uint8_t *originAddr) {
-    extMspPackage.destAddr = destAddr;
-    extMspPackage.originAddr = originAddr;
-    extMspPackage.mspPackage = package;
+void scheduleMspResponse(mspPackage_t *package) {
+    mspPackage = package;
     mspReplyPending = true;
 }
 
 void crsfSendMspResponse(uint8_t *packet) 
 {
-    if (sizeof(*packet) > 0) {
-        sbuf_t crsfPayloadBuf;
-        sbuf_t mspPayload;
-        sbuf_t *dst = &crsfPayloadBuf;
-        sbuf_t *msp = &mspPayload;
+    sbuf_t crsfPayloadBuf;
+    sbuf_t mspPayload;
+    sbuf_t *dst = &crsfPayloadBuf;
+    sbuf_t *msp = &mspPayload;
 
-        msp->ptr = packet;
-        msp->end = packet + CRSF_FRAME_MSP_PAYLOAD_SIZE;
+    msp->ptr = packet;
+    msp->end = packet + CRSF_FRAME_MSP_PAYLOAD_SIZE;
 
-        crsfInitializeFrame(dst, CRSF_ADDRESS_RADIO_TRANSMITTER);
-        sbufWriteU8(dst, CRSF_FRAME_MSP_PAYLOAD_SIZE + CRSF_FRAME_LENGTH_EXT_TYPE_CRC);
-        sbufWriteU8(dst, CRSF_FRAMETYPE_MSP_RESP);
-        sbufWriteU8(dst, *extMspPackage.originAddr);
-        sbufWriteU8(dst, *extMspPackage.destAddr);
-        while (sbufBytesRemaining(msp)) {
-            sbufWriteU8(dst, sbufReadU8(msp));
-        }
-        crsfFinalize(dst);
+    crsfInitializeFrame(dst, CRSF_ADDRESS_BROADCAST);
+    sbufWriteU8(dst, CRSF_FRAME_MSP_PAYLOAD_SIZE + CRSF_FRAME_LENGTH_EXT_TYPE_CRC);
+    sbufWriteU8(dst, CRSF_FRAMETYPE_MSP_RESP);
+    sbufWriteU8(dst, CRSF_ADDRESS_RADIO_TRANSMITTER);
+    sbufWriteU8(dst, CRSF_ADDRESS_BETAFLIGHT);
+    while (sbufBytesRemaining(msp)) {
+        sbufWriteU8(dst, sbufReadU8(msp));
     }
+    crsfFinalize(dst);
  }
 
 static void processCrsf(void)
@@ -345,7 +337,7 @@ static void processCrsf(void)
     }
     if (currentSchedule & BV(CRSF_FRAME_MSP_REQUEST)) {
          if (mspReplyPending) {
-            mspReplyPending = sendMspReply(extMspPackage.mspPackage, CRSF_FRAME_MSP_PAYLOAD_SIZE, &crsfSendMspResponse);
+            mspReplyPending = sendMspReply(mspPackage, CRSF_FRAME_MSP_PAYLOAD_SIZE, &crsfSendMspResponse);
         }
     }
     crsfScheduleIndex = (crsfScheduleIndex + 1) % crsfScheduleCount;

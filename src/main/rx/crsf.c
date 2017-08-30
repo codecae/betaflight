@@ -192,12 +192,10 @@ STATIC_UNIT_TESTED uint8_t crsfFrameStatus(void)
             crsfChannelData[15] = rcChannels->chan15;
             return RX_FRAME_COMPLETE;
         } else {
-            uint8_t *destAddr = &crsfFrame.frame.payload[0];
-            uint8_t *originAddr = &crsfFrame.frame.payload[1];
             if (crsfFrame.frame.type == CRSF_FRAMETYPE_DEVICE_PING) {
-                scheduleDeviceInfoResponse(destAddr, originAddr);
+                scheduleDeviceInfoResponse();
                 return RX_FRAME_COMPLETE;
-            } else if (crsfFrame.frame.type == CRSF_FRAMETYPE_MSP_REQ) {                
+            } else if (crsfFrame.frame.type == CRSF_FRAMETYPE_MSP_REQ || crsfFrame.frame.type == CRSF_FRAMETYPE_MSP_WRITE) {                
                 mspPackage.requestBuffer = crsfMspRxBuffer;
                 mspPackage.responseBuffer = crsfMspTxBuffer;
                 mspPackage.requestPacket = &crsfMspRequest;
@@ -205,7 +203,7 @@ STATIC_UNIT_TESTED uint8_t crsfFrameStatus(void)
                 mspPackage.requestFrame.ptr = (uint8_t *)&crsfFrame.frame.payload + 2;
                 mspPackage.requestFrame.end = (uint8_t *)&crsfFrame.frame.payload + CRSF_PAYLOAD_SIZE_MAX - 2;
                 if(handleMspFrame(&mspPackage)) {
-                    scheduleMspResponse(&mspPackage, destAddr, originAddr);
+                    scheduleMspResponse(&mspPackage);
                 }
                 return RX_FRAME_COMPLETE;
             }
