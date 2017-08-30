@@ -62,6 +62,7 @@
 
 static bool crsfTelemetryEnabled;
 static bool deviceInfoReplyPending;
+static bool mspReplyPending;
 static uint8_t crsfFrame[CRSF_FRAME_SIZE_MAX];
 static uint8_t *crsfExtFrameDest;
 static uint8_t *crsfExtFrameOrigin;
@@ -285,23 +286,25 @@ void scheduleMspResponse(mspPackage_t *package, uint8_t *destAddr, uint8_t *orig
 
 void crsfSendMspResponse(uint8_t *packet) 
 {
-    sbuf_t crsfPayloadBuf;
-    sbuf_t mspPayload;
-    sbuf_t *dst = &crsfPayloadBuf;
-    sbuf_t *msp = &mspPayload;
+    if (sizeof(*packet) > 0) {
+        sbuf_t crsfPayloadBuf;
+        sbuf_t mspPayload;
+        sbuf_t *dst = &crsfPayloadBuf;
+        sbuf_t *msp = &mspPayload;
 
-    msp->ptr = packet;
-    msp->end = packet + CRSF_PAYLOAD_SIZE_MAX - 2;
+        msp->ptr = packet;
+        msp->end = packet + CRSF_FRAME_MSP_PAYLOAD_SIZE;
 
-    crsfInitializeFrame(dst, CRSF_ADDRESS_BROADCAST);
-    sbufWriteU8(dst, CRSF_FRAME_MSP_PAYLOAD_SIZE + CRSF_FRAME_LENGTH_TYPE_CRC);
-    sbufWriteU8(dst, CRSF_FRAMETYPE_MSP_RESP);
-    sbufWriteU8(dst, *extMspPackage.originAddr);
-    sbufWriteU8(dst, *extMspPackage.destAddr);
-    while (sbufBytesRemaining(msp)) {
-        sbufWriteU8(dst, sbufReadU8(msp));
+        crsfInitializeFrame(dst, CRSF_ADDRESS_RADIO_TRANSMITTER);
+        sbufWriteU8(dst, CRSF_FRAME_MSP_PAYLOAD_SIZE + CRSF_FRAME_LENGTH_EXT_TYPE_CRC);
+        sbufWriteU8(dst, CRSF_FRAMETYPE_MSP_RESP);
+        sbufWriteU8(dst, *extMspPackage.originAddr);
+        sbufWriteU8(dst, *extMspPackage.destAddr);
+        while (sbufBytesRemaining(msp)) {
+            sbufWriteU8(dst, sbufReadU8(msp));
+        }
+        crsfFinalize(dst);
     }
-    crsfFinalize(dst);
  }
 
 static void processCrsf(void)
@@ -342,7 +345,7 @@ static void processCrsf(void)
     }
     if (currentSchedule & BV(CRSF_FRAME_MSP_REQUEST)) {
          if (mspReplyPending) {
-            mspReplyPending = sendMspReply(extMspPackage.mspPackage, CRSF_PAYLOAD_SIZE_MAX-2, &crsfSendMspResponse);
+            mspReplyPending = sendMspReply(extMspPackage.mspPackage, CRSF_FRAME_MSP_PAYLOAD_SIZE, &crsfSendMspResponse);
         }
     }
     crsfScheduleIndex = (crsfScheduleIndex + 1) % crsfScheduleCount;
@@ -355,6 +358,7 @@ void initCrsfTelemetry(void)
     crsfTelemetryEnabled = crsfRxIsActive();
 
     deviceInfoReplyPending = false;
+    mspReplyPending = false;
     
     int index = 0;
     crsfSchedule[index++] = BV(CRSF_FRAME_ATTITUDE);

@@ -145,6 +145,9 @@ STATIC_UNIT_TESTED void crsfDataReceive(uint16_t c)
     if (crsfFramePosition < fullFrameLength) {
         crsfFrame.bytes[crsfFramePosition++] = (uint8_t)c;
         crsfFrameDone = crsfFramePosition < fullFrameLength ? false : true;
+        if (crsfFrameDone) {
+            crsfFramePosition = 0;
+        }
     }
 }
 

@@ -34,9 +34,9 @@ typedef enum {
     CRSF_FRAMETYPE_FLIGHT_MODE = 0x21,
     CRSF_FRAMETYPE_DEVICE_PING = 0x28,
     CRSF_FRAMETYPE_DEVICE_INFO = 0x29,
-    CRSF_FRAMETYPE_MSP_REQ = 0x94,   // response request using msp sequence as command
-    CRSF_FRAMETYPE_MSP_RESP = 0x95,  // reply with 60 byte chunked binary
-    CRSF_FRAMETYPE_MSP_WRITE = 0x96  // write with 60 byte chunked binary 
+    CRSF_FRAMETYPE_MSP_REQ = 0x7A,   // response request using msp sequence as command
+    CRSF_FRAMETYPE_MSP_RESP = 0x7B,  // reply with 60 byte chunked binary
+    CRSF_FRAMETYPE_MSP_WRITE = 0x7C  // write with 60 byte chunked binary 
 } crsfFrameTypes_e;
 
 enum {
@@ -45,12 +45,13 @@ enum {
     CRSF_FRAME_LINK_STATISTICS_PAYLOAD_SIZE = 10,
     CRSF_FRAME_RC_CHANNELS_PAYLOAD_SIZE = 22, // 11 bits per channel * 16 channels = 22 bytes.
     CRSF_FRAME_ATTITUDE_PAYLOAD_SIZE = 6,
-    CRSF_FRAME_MSP_PAYLOAD_SIZE = 56,
+    CRSF_FRAME_MSP_PAYLOAD_SIZE = 57,
     CRSF_FRAME_LENGTH_ADDRESS = 1, // length of ADDRESS field
     CRSF_FRAME_LENGTH_FRAMELENGTH = 1, // length of FRAMELENGTH field
     CRSF_FRAME_LENGTH_TYPE = 1, // length of TYPE field
     CRSF_FRAME_LENGTH_CRC = 1, // length of CRC field
-    CRSF_FRAME_LENGTH_TYPE_CRC = 2 // length of TYPE and CRC fields combined
+    CRSF_FRAME_LENGTH_TYPE_CRC = 2, // length of TYPE and CRC fields combined
+    CRSF_FRAME_LENGTH_EXT_TYPE_CRC = 4 // length of Extended Dest/Origin, TYPE and CRC fields combined
 };
 
 enum {
