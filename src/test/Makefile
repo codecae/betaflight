@@ -172,6 +172,8 @@ rc_controls_unittest_SRC := \
 rx_crsf_unittest_SRC := \
 		$(USER_DIR)/rx/crsf.c \
 		$(USER_DIR)/common/crc.c \
+                $(USER_DIR)/common/printf.c \
+		$(USER_DIR)/common/typeconversion.c \
 		$(USER_DIR)/common/streambuf.c
 
 
@@ -207,6 +209,8 @@ telemetry_crsf_unittest_SRC := \
 		$(USER_DIR)/common/maths.c \
 		$(USER_DIR)/common/streambuf.c \
 		$(USER_DIR)/common/gps_conversion.c \
+		$(USER_DIR)/common/printf.c \
+                $(USER_DIR)/common/type_conversion.c \
 		$(USER_DIR)/fc/runtime_config.c
 
 telemetry_crsf_unittest_DEFINES := \

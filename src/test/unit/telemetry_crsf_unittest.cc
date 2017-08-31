@@ -31,6 +31,8 @@ extern "C" {
     #include "common/filter.h"
     #include "common/gps_conversion.h"
     #include "common/maths.h"
+    #include "common/printf.h"
+    #include "common/typeconversion.h"
 
     #include "config/parameter_group.h"
     #include "config/parameter_group_ids.h"
@@ -52,7 +54,8 @@ extern "C" {
     #include "sensors/sensors.h"
 
     #include "telemetry/crsf.h"
-    #include "telemetry/telemetry.h"
+    #include "telemetry/telemetry.h" 
+    #include "telemetry/msp_shared.h"
 
     bool airMode;
 
@@ -316,6 +319,15 @@ batteryState_e getBatteryState(void) {
 
 uint8_t calculateBatteryPercentageRemaining(void) {
     return 67;
+}
+
+void crsfFrameDeviceInfo(sbuf_t *dst) { UNUSED(dst); }
+
+bool sendMspReply(mspPackage_t *package, uint8_t payloadSize, mspResponseFnPtr responseFn) {
+    UNUSED(package);
+    UNUSED(payloadSize);
+    UNUSED(responseFn);
+    return false;
 }
 
 }
