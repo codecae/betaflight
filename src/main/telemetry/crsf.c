@@ -274,8 +274,10 @@ static uint8_t crsfScheduleCount;
 static uint8_t crsfSchedule[CRSF_SCHEDULE_COUNT_MAX];
 
 void scheduleMspResponse(mspPackage_t *package) {
-    mspPackage = package;
-    mspReplyPending = true;
+    if (!mspReplyPending) {
+        mspPackage = package;
+        mspReplyPending = true;
+    }
 }
 
 void crsfSendMspResponse(uint8_t *packet) 
@@ -335,10 +337,8 @@ static void processCrsf(void)
         crsfFinalize(dst);
         deviceInfoReplyPending = false;
     }
-    if (currentSchedule & BV(CRSF_FRAME_MSP_REQUEST)) {
-         if (mspReplyPending) {
-            mspReplyPending = sendMspReply(mspPackage, CRSF_FRAME_MSP_PAYLOAD_SIZE, &crsfSendMspResponse);
-        }
+    if (currentSchedule & BV(CRSF_FRAME_MSP_REQUEST) && mspReplyPending) {
+        mspReplyPending = sendMspReply(mspPackage, CRSF_FRAME_MSP_PAYLOAD_SIZE, &crsfSendMspResponse);
     }
     crsfScheduleIndex = (crsfScheduleIndex + 1) % crsfScheduleCount;
 }

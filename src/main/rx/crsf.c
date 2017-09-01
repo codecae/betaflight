@@ -201,7 +201,7 @@ STATIC_UNIT_TESTED uint8_t crsfFrameStatus(void)
                 mspPackage.requestPacket = &crsfMspRequest;
                 mspPackage.responsePacket = &crsfMspResponse;
                 mspPackage.requestFrame.ptr = (uint8_t *)&crsfFrame.frame.payload + 2;
-                mspPackage.requestFrame.end = (uint8_t *)&crsfFrame.frame.payload + CRSF_PAYLOAD_SIZE_MAX - 2;
+                mspPackage.requestFrame.end = (uint8_t *)&crsfFrame.frame.payload + CRSF_FRAME_MSP_PAYLOAD_SIZE + 2;
                 if(handleMspFrame(&mspPackage)) {
                     scheduleMspResponse(&mspPackage);
                 }
