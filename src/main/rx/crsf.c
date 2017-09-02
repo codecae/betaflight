@@ -193,7 +193,7 @@ STATIC_UNIT_TESTED uint8_t crsfFrameStatus(void)
             } else if (crsfFrame.frame.type == CRSF_FRAMETYPE_MSP_REQ || crsfFrame.frame.type == CRSF_FRAMETYPE_MSP_WRITE) {                
                 // TODO: CRC CHECK
                 uint8_t *frameStart = (uint8_t *)&crsfFrame.frame.payload + 2;
-                uint8_t *frameEnd = (uint8_t *)&crsfFrame.frame.payload + CRSF_FRAME_RX_MSP_PAYLOAD_SIZE + 1;
+                uint8_t *frameEnd = frameStart + CRSF_FRAME_RX_MSP_PAYLOAD_SIZE;
                 if(handleMspFrame(frameStart, frameEnd)) {
                     scheduleMspResponse();
                 }

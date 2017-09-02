@@ -36,6 +36,10 @@ enum {
     TELEMETRY_MSP_ERROR=2
 };
 
+#define REQUEST_BUFFER_SIZE 64
+#define RESPONSE_BUFFER_SIZE 64
+    
+STATIC_UNIT_TESTED uint8_t checksum = 0;
 STATIC_UNIT_TESTED mspPackage_t mspPackage;
 static mspRxBuffer_t mspRxBuffer;
 static mspTxBuffer_t mspTxBuffer;
@@ -57,7 +61,7 @@ void initSharedMsp() {
 static void processMspPacket()
 {
     mspPackage.responsePacket->cmd = 0;
-    mspPackage.responsePacket->result = 0;    
+    mspPackage.responsePacket->result = 0;
     mspPackage.responsePacket->buf.end = mspPackage.responseBuffer;
 
     mspPostProcessFnPtr mspPostProcessFn = NULL;
@@ -75,6 +79,7 @@ void sendMspErrorResponse(uint8_t error, int16_t cmd)
 {
     mspPackage.responsePacket->cmd = cmd;
     mspPackage.responsePacket->result = 0;    
+    mspPackage.responsePacket->buf.end = mspPackage.responseBuffer;
 
     sbufWriteU8(&mspPackage.responsePacket->buf, error);
     mspPackage.responsePacket->result = TELEMETRY_MSP_RES_ERROR;
@@ -85,7 +90,6 @@ bool handleMspFrame(uint8_t *frameStart, uint8_t *frameEnd)
 {
     static uint8_t mspStarted = 0;
     static uint8_t lastSeq = 0;
-    static uint8_t checksum = 0;
 
     mspPacket_t *packet = mspPackage.requestPacket;
     sbuf_t *frameBuf = &mspPackage.requestFrame;
@@ -94,19 +98,22 @@ bool handleMspFrame(uint8_t *frameStart, uint8_t *frameEnd)
         return false;
     } 
       
-    initSharedMsp();
+    if (mspStarted == 0) {
+        initSharedMsp();
+    }
     
-    uint8_t frameLength = frameEnd - frameStart + 1;
-    memcpy(&mspRxBuffer, frameStart, frameLength);
+    uint8_t frameLength = frameEnd - frameStart;
+    uint8_t frame[frameLength];
 
-    frameBuf->ptr = (uint8_t*)&mspRxBuffer;
-    frameBuf->end = (uint8_t*)&mspRxBuffer + frameLength;
+    memcpy(&frame, frameStart, frameLength);
 
+    frameBuf->ptr = (uint8_t*)&frame;
+    frameBuf->end = (uint8_t*)&frame + frameLength;
 
     uint8_t header = sbufReadU8(frameBuf);
     uint8_t seqNumber = header & TELEMETRY_MSP_SEQ_MASK; 
     uint8_t version = (header & TELEMETRY_MSP_VER_MASK) >> TELEMETRY_MSP_VER_SHIFT;
-    
+
     if (version != TELEMETRY_MSP_VERSION) {
         sendMspErrorResponse(TELEMETRY_MSP_VER_MISMATCH, 0);
         return true;
@@ -129,7 +136,7 @@ bool handleMspFrame(uint8_t *frameStart, uint8_t *frameEnd)
     } else if (((lastSeq + 1) & TELEMETRY_MSP_SEQ_MASK) != seqNumber) {
         // packet loss detected!
         mspStarted = 0;
-        return false;
+        return false; 
     }
 
     while ((frameBuf->ptr < frameBuf->end) && sbufBytesRemaining(&packet->buf)) {
@@ -137,7 +144,7 @@ bool handleMspFrame(uint8_t *frameStart, uint8_t *frameEnd)
         sbufWriteU8(&packet->buf, sbufReadU8(frameBuf));
     }
 
-    if (frameBuf->ptr == frameBuf->end) {
+    if (sbufBytesRemaining(frameBuf) == 0) {
         lastSeq = seqNumber;
         return false;
     }
@@ -146,7 +153,7 @@ bool handleMspFrame(uint8_t *frameStart, uint8_t *frameEnd)
         mspStarted = 0;
         sendMspErrorResponse(TELEMETRY_MSP_CRC_ERROR, packet->cmd);
         return true;
-    }
+    } 
 
     mspStarted = 0;
     sbufSwitchToReader(&packet->buf, mspPackage.requestBuffer);
