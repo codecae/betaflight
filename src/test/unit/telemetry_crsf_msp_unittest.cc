@@ -31,6 +31,7 @@ extern "C" {
     #include "common/utils.h"
     #include "common/printf.h" 
     #include "common/gps_conversion.h"
+    #include "common/streambuf.h"
     #include "common/typeconversion.h"
 
     #include "config/parameter_group.h"
@@ -57,12 +58,18 @@ extern "C" {
 
     #include "telemetry/telemetry.h"
     #include "telemetry/msp_shared.h"
+    #include "telemetry/smartport.h"
 
-    void crsfDataReceive(uint16_t c);
-    uint8_t crsfFrameCRC(void);
-    uint16_t crsfReadRawRC(const rxRuntimeConfig_t *rxRuntimeConfig, uint8_t chan);
+    bool handleMspFrame(uint8_t *frameStart, uint8_t *frameEnd);
+    bool sendMspReply(uint8_t payloadSize, mspResponseFnPtr responseFn);
+    uint8_t sbufReadU8(sbuf_t *src);
+    int sbufBytesRemaining(sbuf_t *buf);
+    void initSharedMsp();
     uint16_t testBatteryVoltage = 0;
     int32_t testAmperage = 0;
+    uint8_t mspTxData[64]; //max frame size
+    sbuf_t mspTxDataBuf;
+    uint8_t crsfFrameOut[CRSF_FRAME_SIZE_MAX];
 
     PG_REGISTER(batteryConfig_t, batteryConfig, PG_BATTERY_CONFIG, 0);
     PG_REGISTER(telemetryConfig_t, telemetryConfig, PG_TELEMETRY_CONFIG, 0);
@@ -70,7 +77,8 @@ extern "C" {
 
     extern bool crsfFrameDone;
     extern crsfFrame_t crsfFrame;
-
+    extern mspPackage_t mspPackage;
+  
     uint32_t dummyTimeUs;
 
 }
@@ -91,20 +99,176 @@ const uint8_t crsfPidRequest[] = {
     0x00,0x0D,0x7A,0xC8,0xEA,0x30,0x00,0x70,0x70,0x00,0x00,0x00,0x00,0x69
 };
 
-TEST(CrossFireMSPTest, TestCrsfPIDRequest)
+TEST(CrossFireMSPTest, RequestBufferTest)
 {
-    
+    initSharedMsp();
     const crsfMspFrame_t *framePtr = (const crsfMspFrame_t*)crsfPidRequest;
     crsfFrame = *(const crsfFrame_t*)framePtr;
     crsfFrameDone = true;
-    const uint8_t crc = crsfFrameCRC();
-    EXPECT_EQ(true, crsfFrameDone);
-    EXPECT_EQ(crc, crsfFrame.frame.payload[2+CRSF_FRAME_MSP_PAYLOAD_SIZE]);
     EXPECT_EQ(CRSF_ADDRESS_BROADCAST, crsfFrame.frame.deviceAddress);
     EXPECT_EQ(CRSF_FRAME_LENGTH_ADDRESS + CRSF_FRAME_LENGTH_EXT_TYPE_CRC + CRSF_FRAME_MSP_PAYLOAD_SIZE, crsfFrame.frame.frameLength);
     EXPECT_EQ(CRSF_FRAMETYPE_MSP_REQ, crsfFrame.frame.type);
-    //Sconst uint8_t crc = crsfFrameCRC();
+    uint8_t *destination = (uint8_t *)&crsfFrame.frame.payload; 
+    uint8_t *origin = (uint8_t *)&crsfFrame.frame.payload + 1;
+    uint8_t *frameStart = (uint8_t *)&crsfFrame.frame.payload + 2;
+    uint8_t *frameEnd = (uint8_t *)&crsfFrame.frame.payload + CRSF_FRAME_MSP_PAYLOAD_SIZE + 1;
+    EXPECT_EQ(0xC8, *destination);
+    EXPECT_EQ(0xEA, *origin);
+    EXPECT_EQ(0x30, *frameStart);
+    EXPECT_EQ(0x00, *frameEnd);
+    handleMspFrame(frameStart, frameEnd);
+    sbufSwitchToReader(&mspPackage.requestPacket->buf, mspPackage.requestBuffer);
+    EXPECT_EQ(0x30, sbufReadU8(&mspPackage.requestPacket->buf));
+    EXPECT_EQ(0x00, sbufReadU8(&mspPackage.requestPacket->buf));
+    EXPECT_EQ(0x70, sbufReadU8(&mspPackage.requestPacket->buf));
+    EXPECT_EQ(0x70, sbufReadU8(&mspPackage.requestPacket->buf));
+    EXPECT_EQ(0x00, sbufReadU8(&mspPackage.requestPacket->buf));
+    EXPECT_EQ(0x00, sbufReadU8(&mspPackage.requestPacket->buf));
+    EXPECT_EQ(0x00, sbufReadU8(&mspPackage.requestPacket->buf));
+    EXPECT_EQ(0x00, sbufReadU8(&mspPackage.requestPacket->buf));
+    sbufSwitchToReader(&mspPackage.requestPacket->buf, mspPackage.requestBuffer);
+    EXPECT_EQ(8, sbufBytesRemaining(&mspPackage.requestPacket->buf));
+
 }
+
+TEST(CrossFireMSPTest, ResponsePacketTest)
+{
+    initSharedMsp();
+    const crsfMspFrame_t *framePtr = (const crsfMspFrame_t*)crsfPidRequest;
+    crsfFrame = *(const crsfFrame_t*)framePtr;
+    crsfFrameDone = true;
+    uint8_t *frameStart = (uint8_t *)&crsfFrame.frame.payload + 2;
+    uint8_t *frameEnd = (uint8_t *)&crsfFrame.frame.payload + CRSF_FRAME_MSP_PAYLOAD_SIZE + 1;
+    handleMspFrame(frameStart, frameEnd);
+    for (unsigned int ii=1; ii<30; ii++) {
+        EXPECT_EQ(ii, sbufReadU8(&mspPackage.responsePacket->buf));
+    }
+    sbufSwitchToReader(&mspPackage.responsePacket->buf, mspPackage.responseBuffer);
+}
+
+TEST(CrossFireMSPTest, WriteResponseTest)
+{
+    initSharedMsp();
+
+}
+
+/*void crsfSendMspResponse(uint8_t *packet) 
+{
+    sbuf_t mspPayload;
+    sbuf_t *dst = &mspTxDataBuf;
+    sbuf_t *msp = &mspPayload;
+
+    msp->ptr = packet;
+    msp->end = packet + CRSF_FRAME_MSP_PAYLOAD_SIZE;
+    dst->ptr = crsfFrameOut;
+    dst->end = ARRAYEND(crsfFrameOut);
+
+    sbufWriteU8(dst, CRSF_ADDRESS_BROADCAST);
+    sbufWriteU8(dst, CRSF_FRAME_MSP_PAYLOAD_SIZE + CRSF_FRAME_LENGTH_EXT_TYPE_CRC);
+    sbufWriteU8(dst, CRSF_FRAMETYPE_MSP_RESP);
+    sbufWriteU8(dst, CRSF_ADDRESS_RADIO_TRANSMITTER);
+    sbufWriteU8(dst, CRSF_ADDRESS_BETAFLIGHT);
+    while (sbufBytesRemaining(msp)) {
+        sbufWriteU8(dst, sbufReadU8(msp));
+    }
+    //skip crc for testing
+    sbufSwitchToReader(dst, crsfFrameOut);
+ }
+
+TEST(CrossFireMSPTest, ResponseBufferTest_Small) {
+    initSharedMsp();
+    const crsfMspFrame_t *framePtr = (const crsfMspFrame_t*)crsfPidRequest;
+    crsfFrame = *(const crsfFrame_t*)framePtr;
+    crsfFrameDone = true;
+    uint8_t *frameStart = (uint8_t *)&crsfFrame.frame.payload + 2;
+    uint8_t *frameEnd = (uint8_t *)&crsfFrame.frame.payload + CRSF_FRAME_MSP_PAYLOAD_SIZE + 2;
+    handleMspFrame(frameStart, frameEnd);
+    bool pending1 = sendMspReply(CRSF_FRAME_MSP_PAYLOAD_SIZE, &crsfSendMspResponse);
+    EXPECT_TRUE(pending1); 
+    EXPECT_EQ(0x00, crsfFrameOut[0]); // broadcast
+    EXPECT_EQ(CRSF_FRAME_MSP_PAYLOAD_SIZE + CRSF_FRAME_LENGTH_EXT_TYPE_CRC, crsfFrameOut[1]); // crsf frame length
+    EXPECT_EQ(0x7B, crsfFrameOut[2]); // response
+    EXPECT_EQ(0xEA, crsfFrameOut[3]); // to the transmitter
+    EXPECT_EQ(0xC8, crsfFrameOut[4]); // from betaflight
+    EXPECT_EQ(0x10, crsfFrameOut[5]); // first frame
+    EXPECT_EQ(0x1E, crsfFrameOut[6]); // length of transport (30)
+    EXPECT_EQ(1, crsfFrameOut[7]); // msp data begins
+    EXPECT_EQ(2, crsfFrameOut[8]); // ...
+    EXPECT_EQ(3, crsfFrameOut[9]); // ...
+    EXPECT_EQ(4, crsfFrameOut[10]); // ...
+    EXPECT_EQ(5, crsfFrameOut[11]); // ...
+    EXPECT_EQ(6, crsfFrameOut[12]); // ...
+    // Skip CRC
+    // NEXT FRAME
+    bool pending2 = sendMspReply(CRSF_FRAME_MSP_PAYLOAD_SIZE, &crsfSendMspResponse);
+    EXPECT_TRUE(pending2); 
+    EXPECT_EQ(0x00, crsfFrameOut[0]); // broadcast
+    EXPECT_EQ(CRSF_FRAME_MSP_PAYLOAD_SIZE + CRSF_FRAME_LENGTH_EXT_TYPE_CRC, crsfFrameOut[1]); // crsf frame length
+    EXPECT_EQ(0x7B, crsfFrameOut[2]); // response
+    EXPECT_EQ(0xEA, crsfFrameOut[3]); // to the transmitter
+    EXPECT_EQ(0xC8, crsfFrameOut[4]); // from betaflight
+    EXPECT_EQ(0x01, crsfFrameOut[5]); // second frame
+    EXPECT_EQ(7, crsfFrameOut[6]); // ... 
+    EXPECT_EQ(8, crsfFrameOut[7]); // ... 
+    EXPECT_EQ(9, crsfFrameOut[8]); // ... 
+    EXPECT_EQ(10, crsfFrameOut[9]); // ... 
+    EXPECT_EQ(11, crsfFrameOut[10]); // ... 
+    EXPECT_EQ(12, crsfFrameOut[11]); // ... 
+    EXPECT_EQ(13, crsfFrameOut[12]); // ... 
+    // Skip CRC
+    // NEXT FRAME
+    bool pending3 = sendMspReply(CRSF_FRAME_MSP_PAYLOAD_SIZE, &crsfSendMspResponse);
+    EXPECT_TRUE(pending3); 
+    EXPECT_EQ(0x00, crsfFrameOut[0]); // broadcast
+    EXPECT_EQ(CRSF_FRAME_MSP_PAYLOAD_SIZE + CRSF_FRAME_LENGTH_EXT_TYPE_CRC, crsfFrameOut[1]); // crsf frame length
+    EXPECT_EQ(0x7B, crsfFrameOut[2]); // response
+    EXPECT_EQ(0xEA, crsfFrameOut[3]); // to the transmitter
+    EXPECT_EQ(0xC8, crsfFrameOut[4]); // from betaflight
+    EXPECT_EQ(0x02, crsfFrameOut[5]); // third frame
+    EXPECT_EQ(14, crsfFrameOut[6]); // ... 
+    EXPECT_EQ(15, crsfFrameOut[7]); // ... 
+    EXPECT_EQ(16, crsfFrameOut[8]); // ... 
+    EXPECT_EQ(17, crsfFrameOut[9]); // ... 
+    EXPECT_EQ(18, crsfFrameOut[10]); // ... 
+    EXPECT_EQ(19, crsfFrameOut[11]); // ... 
+    EXPECT_EQ(20, crsfFrameOut[12]); // ... 
+    // Skip CRC
+    // NEXT FRAME
+    bool pending4 = sendMspReply(CRSF_FRAME_MSP_PAYLOAD_SIZE, &crsfSendMspResponse);
+    EXPECT_TRUE(pending4); 
+    EXPECT_EQ(0x00, crsfFrameOut[0]); // broadcast
+    EXPECT_EQ(CRSF_FRAME_MSP_PAYLOAD_SIZE + CRSF_FRAME_LENGTH_EXT_TYPE_CRC, crsfFrameOut[1]); // crsf frame length
+    EXPECT_EQ(0x7B, crsfFrameOut[2]); // response
+    EXPECT_EQ(0xEA, crsfFrameOut[3]); // to the transmitter
+    EXPECT_EQ(0xC8, crsfFrameOut[4]); // from betaflight
+    EXPECT_EQ(0x03, crsfFrameOut[5]); // fourth frame
+    EXPECT_EQ(21, crsfFrameOut[6]); // ... 
+    EXPECT_EQ(22, crsfFrameOut[7]); // ... 
+    EXPECT_EQ(23, crsfFrameOut[8]); // ... 
+    EXPECT_EQ(24, crsfFrameOut[9]); // ... 
+    EXPECT_EQ(25, crsfFrameOut[10]); // ... 
+    EXPECT_EQ(26, crsfFrameOut[11]); // ... 
+    EXPECT_EQ(27, crsfFrameOut[12]); // ... 
+    // Skip CRC
+    // NEXT FRAME
+    bool pending5 = sendMspReply(CRSF_FRAME_MSP_PAYLOAD_SIZE, &crsfSendMspResponse);
+    EXPECT_FALSE(pending5);  // LAST FRAME!
+    EXPECT_EQ(0x00, crsfFrameOut[0]); // broadcast
+    EXPECT_EQ(CRSF_FRAME_MSP_PAYLOAD_SIZE + CRSF_FRAME_LENGTH_EXT_TYPE_CRC, crsfFrameOut[1]); // crsf frame length
+    EXPECT_EQ(0x7B, crsfFrameOut[2]); // response
+    EXPECT_EQ(0xEA, crsfFrameOut[3]); // to the transmitter
+    EXPECT_EQ(0xC8, crsfFrameOut[4]); // from betaflight
+    EXPECT_EQ(0x04, crsfFrameOut[5]); // fourth frame
+    EXPECT_EQ(28, crsfFrameOut[6]); // ... 
+    EXPECT_EQ(29, crsfFrameOut[7]); // ... 
+    EXPECT_EQ(30, crsfFrameOut[8]); // ... 
+    EXPECT_EQ(0x71, crsfFrameOut[9]); // ... MSP CRC
+    EXPECT_EQ(0, crsfFrameOut[10]); // ... 
+    EXPECT_EQ(0, crsfFrameOut[11]); // ... 
+    EXPECT_EQ(0, crsfFrameOut[12]); // ... 
+    // Skip CRC
+}*/
+
 
 // STUBS
 
@@ -131,7 +295,23 @@ extern "C" {
 
     bool isAirmodeActive(void) {return true;}
 
-    mspResult_e mspFcProcessCommand(mspPacket_t *, mspPacket_t *, mspPostProcessFnPtr *) {
+    mspResult_e mspFcProcessCommand(mspPacket_t *cmd, mspPacket_t *reply, mspPostProcessFnPtr *mspPostProcessFn) {
+
+        UNUSED(mspPostProcessFn);
+
+        sbuf_t *dst = &reply->buf;
+        sbuf_t *src = &cmd->buf;
+        const uint8_t cmdMSP = cmd->cmd;
+        reply->cmd = cmd->cmd;
+
+        if (cmdMSP == 0x70) {
+            for (unsigned int ii=1; ii<=30; ii++) {
+                sbufWriteU8(dst, ii);
+            }
+        } elseif (cmdMSP = 0xCA) {
+            return MSP_RESULT_ACK;
+        }
+
         return MSP_RESULT_ACK;
     }
 

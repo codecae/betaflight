@@ -218,6 +218,7 @@ telemetry_crsf_msp_unittest_SRC := \
                 $(USER_DIR)/common/crc.c \
                 $(USER_DIR)/common/streambuf.c \
                 $(USER_DIR)/common/printf.c \
+		$(USER_DIR)/common/streambuf.c \
                 $(USER_DIR)/drivers/serial.c \
 		$(USER_DIR)/common/typeconversion.c \
                 $(USER_DIR)/telemetry/crsf.c \
@@ -270,6 +271,9 @@ huffman_unittest_SRC := \
 
 huffman_unittest_DEFINES := \
 		USE_HUFFMAN
+
+ringbuffer_unittest_SRC := \
+		$(USER_DIR)/common/ringbuffer.c 
 
 # Please tweak the following variable definitions as needed by your
 # project, except GTEST_HEADERS, which you can use in your own targets

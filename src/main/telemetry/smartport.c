@@ -162,8 +162,6 @@ typedef struct smartPortFrame_s {
 } __attribute__((packed)) smartPortFrame_t;
 
 #define SMARTPORT_FRAME_SIZE  sizeof(smartPortFrame_t)
-#define SMARTPORT_MSP_TX_BUF_SIZE 256
-#define SMARTPORT_MSP_RX_BUF_SIZE 64
 
 #define SMARTPORT_PAYLOAD_OFFSET offsetof(smartPortFrame_t, valueId)
 #define SMARTPORT_PAYLOAD_SIZE   (SMARTPORT_FRAME_SIZE - SMARTPORT_PAYLOAD_OFFSET - 1)
@@ -367,9 +365,9 @@ void handleSmartPortTelemetry(void)
             mspPackage.responseBuffer = smartPortMspTxBuffer;
             mspPackage.requestPacket = &smartPortMspRequest;
             mspPackage.responsePacket = &smartPortMspResponse;
-            mspPackage.requestFrame.ptr = (uint8_t *)&smartPortRxBuffer + SMARTPORT_PAYLOAD_OFFSET;
-            mspPackage.requestFrame.end = (uint8_t *)&smartPortRxBuffer + SMARTPORT_PAYLOAD_OFFSET + SMARTPORT_PAYLOAD_SIZE;
-            smartPortMspReplyPending = handleMspFrame(&mspPackage);
+            uint8_t *frameStart = (uint8_t *)&smartPortRxBuffer + SMARTPORT_PAYLOAD_OFFSET;
+            uint8_t *frameEnd = (uint8_t *)&smartPortRxBuffer + SMARTPORT_PAYLOAD_OFFSET + SMARTPORT_PAYLOAD_SIZE;
+            smartPortMspReplyPending = handleMspFrame(frameStart, frameEnd);
         }
     }
 
@@ -381,7 +379,7 @@ void handleSmartPortTelemetry(void)
         }
 
         if (smartPortMspReplyPending) {
-            smartPortMspReplyPending = sendMspReply(&mspPackage, SMARTPORT_PAYLOAD_SIZE, &smartPortSendMspResponse);
+            smartPortMspReplyPending = sendMspReply(SMARTPORT_PAYLOAD_SIZE, &smartPortSendMspResponse);
             smartPortHasRequest = 0;
             return;
         }

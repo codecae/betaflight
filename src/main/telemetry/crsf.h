@@ -27,7 +27,7 @@ typedef enum {
     CRSF_FRAME_FLIGHT_MODE,
     CRSF_FRAME_GPS,
     CRSF_FRAME_DEVICE_INFO,
-    CRSF_FRAME_MSP_REQUEST
+    CRSF_FRAME_MSP_RESPONSE
 } crsfFrameType_e;
 
 void initCrsfTelemetry(void);
@@ -35,6 +35,6 @@ bool checkCrsfTelemetryState(void);
 void handleCrsfTelemetry(timeUs_t currentTimeUs);
 void handleCrsfTelemetry(timeUs_t currentTimeUs);
 void scheduleDeviceInfoResponse();
-void scheduleMspResponse(mspPackage_t *package); 
+void scheduleMspResponse(); 
 
 int getCrsfFrame(uint8_t *frame, crsfFrameType_e frameType);
