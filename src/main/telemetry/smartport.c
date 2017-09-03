@@ -1,6 +1,9 @@
 /*
  * SmartPort Telemetry implementation by frank26080115
  * see https://github.com/frank26080115/cleanflight/wiki/Using-Smart-Port
+ *
+ * Updated 02-SEP-17 - decoupled SmartPort into msp_shared.h -
+ *
  */
 #include <stdbool.h>
 #include <stdint.h>
@@ -169,12 +172,6 @@ typedef struct smartPortFrame_s {
 static smartPortFrame_t smartPortRxBuffer;
 static uint8_t smartPortRxBytes = 0;
 static bool smartPortFrameReceived = false;
-
-static uint8_t smartPortMspRxBuffer[SMARTPORT_MSP_RX_BUF_SIZE];
-static uint8_t smartPortMspTxBuffer[SMARTPORT_MSP_TX_BUF_SIZE];
-static mspPacket_t smartPortMspRequest;
-static mspPacket_t smartPortMspResponse;
-static mspPackage_t mspPackage;
 static bool smartPortMspReplyPending = false;
 
 static void smartPortDataReceive(uint16_t c)
@@ -361,10 +358,6 @@ void handleSmartPortTelemetry(void)
         if (smartPortRxBuffer.frameId == FSSP_MSPC_FRAME) {
 
             // Pass only the payload: skip sensorId & frameId
-            mspPackage.requestBuffer = smartPortMspRxBuffer;
-            mspPackage.responseBuffer = smartPortMspTxBuffer;
-            mspPackage.requestPacket = &smartPortMspRequest;
-            mspPackage.responsePacket = &smartPortMspResponse;
             uint8_t *frameStart = (uint8_t *)&smartPortRxBuffer + SMARTPORT_PAYLOAD_OFFSET;
             uint8_t *frameEnd = (uint8_t *)&smartPortRxBuffer + SMARTPORT_PAYLOAD_OFFSET + SMARTPORT_PAYLOAD_SIZE;
             smartPortMspReplyPending = handleMspFrame(frameStart, frameEnd);

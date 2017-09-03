@@ -26,8 +26,8 @@ typedef enum {
     CRSF_FRAME_BATTERY_SENSOR,
     CRSF_FRAME_FLIGHT_MODE,
     CRSF_FRAME_GPS,
-    CRSF_FRAME_DEVICE_INFO,
-    CRSF_FRAME_MSP_RESPONSE
+    CRSF_FRAME_DEVICE_INFO //,
+    //CRSF_FRAME_MSP_RESPONSE
 } crsfFrameType_e;
 
 void initCrsfTelemetry(void);

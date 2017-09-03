@@ -1,3 +1,12 @@
+/*
+ *  msp_shared.c by null
+ *
+ *  Common set of convenience functions built for telemetry
+ *  accces to MSP getters and setters.  Originally was built
+ *  as part of the SmarPort implementation by frank26080115.
+ *
+ */
+
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>

@@ -12,7 +12,10 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with Cleanflight.  If not, see <http://www.gnu.org/licenses/>.
+ * along with Cleanflight.  If not, see <http://www.gnu.org/licenses/>
+ *
+ * + Updated 02-SEP-17 - decoupled SmartPort into msp_shared.h - null
+ *
  */
 
 #include <stdbool.h>
@@ -273,6 +276,42 @@ void crsfFrameDeviceInfo(sbuf_t *dst) {
 static uint8_t crsfScheduleCount;
 static uint8_t crsfSchedule[CRSF_SCHEDULE_COUNT_MAX];
 
+/*
+0x7A - MSP Request - Incoming
+-----------------------------
+uint8_t Device Address
+uint8_t Length (including type and CRC)
+uint8_t Frame Type
+uint8_t Destination Address
+uint8_t Origin Address
+<8 bytes of msp data - zero padded>
+uint8_t CRC
+
+0x7B - MSP Response - Outgoing
+------------------------------
+uint8_t Device Address
+uint8_t Length (including Type and CRC)
+uint8_t Frame Type
+uint8_t Destination Address
+uint8_t Origin Address
+<58 bytes of msp data - zero padded>
+uint8_t CRC
+
+0x7C - MSP Write - Incoming
+----------------------------
+uint8_t Device Address
+uint8_t Length (including type and CRC)
+uint8_t Frame Type
+uint8_t Destination Address
+uint8_t Origin Address
+<8 bytes of msp data - chunked>
+uint8_t CRC
+
+Incoming write packets are limited in size by OpenTx. 
+MSP write data can be sequenced in chunks to enable larger transports.
+
+*/
+
 void scheduleMspResponse() {
     if (!mspReplyPending) {
         mspReplyPending = true;
@@ -336,11 +375,12 @@ static void processCrsf(void)
         crsfFinalize(dst);
         deviceInfoReplyPending = false;
     }
-    if (currentSchedule & BV(CRSF_FRAME_MSP_RESPONSE) && mspReplyPending) {
-        while (mspReplyPending) {
-            mspReplyPending = sendMspReply(CRSF_FRAME_TX_MSP_PAYLOAD_SIZE, &crsfSendMspResponse);
-        }
-    }
+    /*if (currentSchedule & BV(CRSF_FRAME_MSP_RESPONSE) && mspReplyPending) {
+       mspReplyPending = sendMspReply(CRSF_FRAME_TX_MSP_PAYLOAD_SIZE, &crsfSendMspResponse);
+       if (mspReplyPending) {
+            crsfScheduleIndex--;    
+       }
+    } */
     crsfScheduleIndex = (crsfScheduleIndex + 1) % crsfScheduleCount;
 }
 
@@ -361,7 +401,7 @@ void initCrsfTelemetry(void)
         crsfSchedule[index++] = BV(CRSF_FRAME_GPS);
     }
     crsfSchedule[index++] = BV(CRSF_FRAME_DEVICE_INFO);
-    crsfSchedule[index++] = BV(CRSF_FRAME_MSP_RESPONSE);
+    //crsfSchedule[index++] = BV(CRSF_FRAME_MSP_RESPONSE);
     crsfScheduleCount = (uint8_t)index;
 
  }
@@ -389,7 +429,11 @@ void handleCrsfTelemetry(timeUs_t currentTimeUs)
     // Actual telemetry data only needs to be sent at a low frequency, ie 10Hz
     if (currentTimeUs >= crsfLastCycleTime + CRSF_CYCLETIME_US) {
         crsfLastCycleTime = currentTimeUs;
-        processCrsf();
+        if (mspReplyPending) {
+            mspReplyPending = sendMspReply(CRSF_FRAME_TX_MSP_PAYLOAD_SIZE, &crsfSendMspResponse);
+        } else {
+            processCrsf();
+        }
     }
 }
 
