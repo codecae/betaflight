@@ -159,7 +159,15 @@ STATIC_UNIT_TESTED uint8_t crsfFrameStatus(void)
 {
     if (crsfFrameDone) {
         crsfFrameDone = false;
-        if (crsfFrame.frame.type == CRSF_FRAMETYPE_RC_CHANNELS_PACKED) {
+        if (crsfFrame.frame.type == CRSF_FRAMETYPE_MSP_REQ || crsfFrame.frame.type == CRSF_FRAMETYPE_MSP_WRITE) {
+            // TODO: CRC CHECK
+            uint8_t *frameStart = (uint8_t *)&crsfFrame.frame.payload + 2;
+            uint8_t *frameEnd = (uint8_t *)&crsfFrame.frame.payload + 2 + CRSF_FRAME_RX_MSP_PAYLOAD_SIZE;
+            if(handleMspFrame(frameStart, frameEnd)) {
+                scheduleMspResponse();
+            }
+            return RX_FRAME_COMPLETE;
+        } else if (crsfFrame.frame.type == CRSF_FRAMETYPE_RC_CHANNELS_PACKED) {
             // CRC includes type and payload of each frame
             const uint8_t crc = crsfFrameCRC();
             if (crc != crsfFrame.frame.payload[CRSF_FRAME_RC_CHANNELS_PAYLOAD_SIZE]) {
@@ -185,20 +193,10 @@ STATIC_UNIT_TESTED uint8_t crsfFrameStatus(void)
             crsfChannelData[14] = rcChannels->chan14;
             crsfChannelData[15] = rcChannels->chan15;
             return RX_FRAME_COMPLETE;
-        } else {
-            if (crsfFrame.frame.type == CRSF_FRAMETYPE_DEVICE_PING) {
-                // TODO: CRC CHECK
-                scheduleDeviceInfoResponse();
-                return RX_FRAME_COMPLETE;
-            } else if (crsfFrame.frame.type == CRSF_FRAMETYPE_MSP_REQ || crsfFrame.frame.type == CRSF_FRAMETYPE_MSP_WRITE) {
-                // TODO: CRC CHECK
-                uint8_t *frameStart = (uint8_t *)&crsfFrame.frame.payload + 2;
-                uint8_t *frameEnd = (uint8_t *)&crsfFrame.frame.payload + 2 + CRSF_FRAME_RX_MSP_PAYLOAD_SIZE;
-                if(handleMspFrame(frameStart, frameEnd)) {
-                    scheduleMspResponse();
-                }
-                return RX_FRAME_COMPLETE;
-            }
+        } else if (crsfFrame.frame.type == CRSF_FRAMETYPE_DEVICE_PING) {
+            // TODO: CRC CHECK
+            scheduleDeviceInfoResponse();
+            return RX_FRAME_COMPLETE;
         }
     }
     return RX_FRAME_PENDING;
