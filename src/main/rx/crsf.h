@@ -34,6 +34,7 @@ typedef enum {
     CRSF_FRAMETYPE_FLIGHT_MODE = 0x21,
     CRSF_FRAMETYPE_DEVICE_PING = 0x28,
     CRSF_FRAMETYPE_DEVICE_INFO = 0x29,
+    CRSF_FRAMETYPE_COMMAND = 0x32,
     CRSF_FRAMETYPE_MSP_REQ = 0x7A,   // response request using msp sequence as command
     CRSF_FRAMETYPE_MSP_RESP = 0x7B,  // reply with 58 byte chunked binary
     CRSF_FRAMETYPE_MSP_WRITE = 0x7C  // write with 8 byte chunked binary (OpenTX outbound telemetry buffer limit)
@@ -70,7 +71,11 @@ enum {
     CRSF_ADDRESS_CRSF_TRANSMITTER = 0xEE
 };
 
+<<<<<<< HEAD
 #define CRSF_PAYLOAD_SIZE_MAX   60
+=======
+#define CRSF_PAYLOAD_SIZE_MAX   60 // !!TODO needs checking
+>>>>>>> Various updates
 #define CRSF_FRAME_SIZE_MAX     (CRSF_PAYLOAD_SIZE_MAX + 4)
 
 typedef struct crsfFrameDef_s {
@@ -80,9 +85,31 @@ typedef struct crsfFrameDef_s {
     uint8_t payload[CRSF_PAYLOAD_SIZE_MAX + 1]; // +1 for CRC at end of payload
 } crsfFrameDef_t;
 
+typedef struct crsfExtFrameDef_s {
+    uint8_t deviceAddress;
+    uint8_t frameLength;
+    uint8_t type;
+    uint8_t destination;
+    uint8_t origin;
+    uint8_t payload[CRSF_PAYLOAD_SIZE_MAX - 1];
+} crsfExtFrameDef_t;
+
+typedef struct crsfCmdFrameDef_s {
+    uint8_t deviceAddress;
+    uint8_t frameLength;
+    uint8_t type;
+    uint8_t destination;
+    uint8_t origin;
+    uint8_t command;
+    uint8_t subCommand;
+    uint8_t payload[CRSF_PAYLOAD_SIZE_MAX - 3];
+} crsfCmdFrameDef_t;
+
 typedef union crsfFrame_u {
     uint8_t bytes[CRSF_FRAME_SIZE_MAX];
     crsfFrameDef_t frame;
+    crsfExtFrameDef_t extFrame;
+    crsfCmdFrameDef_t cmdFrame;
 } crsfFrame_t;
 
 void crsfRxWriteTelemetryData(const void *data, int len);

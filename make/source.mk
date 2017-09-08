@@ -110,6 +110,7 @@ FC_SRC = \
             rx/rx.c \
             rx/rx_spi.c \
             rx/crsf.c \
+            rx/crsf_commands.c \
             rx/sbus.c \
             rx/spektrum.c \
             rx/sumd.c \

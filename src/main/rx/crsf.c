@@ -42,6 +42,7 @@
 
 #include "rx/rx.h"
 #include "rx/crsf.h"
+#include "rx/crsf_commands.h"
 
 #include "telemetry/crsf.h"
 
@@ -159,9 +160,28 @@ STATIC_UNIT_TESTED void crsfDataReceive(uint16_t c)
                     }
                 }
             }
+#endif 
+#if defined(USE_CRSF_COMMANDS)
+            if (crsfFrame.frame.type == CRSF_FRAMETYPE_COMMAND) {
+                const uint8_t cmdCrc = crsfCmdFrameCRC();
+                const uint8_t crc2 = crsfFrameCRC();
+                if (crc2 == crsfFrame.bytes[fullFrameLength-1]) {
+                    handleCrsfCommand(&crsfFrame, &cmdCrc);
+                }
+            }
 #endif
         }
     }
+}
+
+STATIC_UNIT_TESTED uint8_t crsfCmdFrameCRC(void)
+{
+    // CRC includes type and payload
+    uint8_t crc = crc8_crsf_cmd(0, crsfFrame.frame.type);
+    for (int ii = 0; ii < crsfFrame.frame.frameLength - 3; ++ii) {
+        crc = crc8_crsf_cmd(crc, crsfFrame.frame.payload[ii]);
+    }
+    return crc;
 }
 
 STATIC_UNIT_TESTED uint8_t crsfFrameStatus(void)

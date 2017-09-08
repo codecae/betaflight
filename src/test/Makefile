@@ -180,6 +180,12 @@ rx_crsf_unittest_SRC := \
 		$(USER_DIR)/common/streambuf.c \
 		$(USER_DIR)/drivers/serial.c
 
+rx_crsf_command_unittest_SRC := \
+		$(USER_DIR)/rx/crsf.c \
+		$(USER_DIR)/rx/crsf_commands.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/streambuf.c
+
 
 rx_ibus_unittest_SRC := \
 		$(USER_DIR)/rx/ibus.c

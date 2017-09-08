@@ -99,3 +99,16 @@ void crc8_xor_sbuf_append(sbuf_t *dst, uint8_t *start)
     sbufWriteU8(dst, crc);
 }
 
+
+uint8_t crc8_crsf_cmd(uint8_t crc, unsigned char a)
+{
+    crc ^= a;
+    for (int ii = 0; ii < 8; ++ii) {
+        if (crc & 0x80) {
+            crc = (crc << 1) ^ 0xBA;
+        } else {
+            crc = crc << 1;
+        }
+    }
+    return crc;
+}
