@@ -178,11 +178,12 @@ STATIC_UNIT_TESTED uint8_t crsfCmdFrameCRC(void)
 {
     // CRC includes type and payload
     uint8_t crc = crc8_crsf_cmd(0, crsfFrame.frame.type);
-    for (int ii = 0; ii < crsfFrame.frame.frameLength - 3; ++ii) {
+    for (int ii = 0; ii < crsfFrame.frame.frameLength - (CRSF_FRAME_LENGTH_TYPE_CRC + 1); ++ii) {
         crc = crc8_crsf_cmd(crc, crsfFrame.frame.payload[ii]);
     }
     return crc;
 }
+#endif
 
 STATIC_UNIT_TESTED uint8_t crsfFrameStatus(void)
 {

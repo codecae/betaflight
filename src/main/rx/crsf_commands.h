@@ -19,4 +19,4 @@ typedef struct crsfLedParam_s {
     uint8_t v;
 } crsfLedParam_t;
 
-bool handleCrsfCommand(crsfFrame_t *frame, const uint8_t crc);
+bool handleCrsfCommand(crsfFrame_t *frame, const uint8_t *cmdCrc, const uint8_t *crc);

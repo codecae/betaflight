@@ -64,3 +64,8 @@
 #undef VTX_TRAMP
 #undef VTX_SMARTAUDIO
 #endif
+
+#if defined(USE_CRSF_COMMANDS)
+#if !defined(LED_STRIP)
+#undef USE_CRSF_COMMANDS
+#endif
