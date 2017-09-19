@@ -33,7 +33,8 @@
 enum {
     TELEMETRY_MSP_VER_MISMATCH=0,
     TELEMETRY_MSP_CRC_ERROR=1,
-    TELEMETRY_MSP_ERROR=2
+    TELEMETRY_MSP_ERROR=2,
+    TELEMETRY_MSP_WRITE_ACK=3
 };
 
 #define REQUEST_BUFFER_SIZE 64
@@ -180,6 +181,11 @@ bool sendMspReply(uint8_t payloadSize, mspResponseFnPtr responseFn)
         uint8_t head = TELEMETRY_MSP_START_FLAG | (seq++ & TELEMETRY_MSP_SEQ_MASK);
         if (mspPackage.responsePacket->result < 0) {
             head |= TELEMETRY_MSP_ERROR_FLAG;
+        } else if (mspPackage.responsePacket->result == MSP_RESULT_ACK && sbufBytesRemaining(txBuf) == 0) {
+            // Send write acknowledgment
+            sbufWriteU8(txBuf, mspPackage.responsePacket->cmd);
+            sbufWriteU8(txBuf, TELEMETRY_MSP_WRITE_ACK);
+            sbufSwitchToReader(txBuf, mspPackage.responseBuffer);
         }
         sbufWriteU8(payloadBuf, head);
 
