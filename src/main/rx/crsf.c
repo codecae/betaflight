@@ -122,6 +122,18 @@ STATIC_UNIT_TESTED uint8_t crsfFrameCRC(void)
     return crc;
 }
 
+#if defined(USE_CRSF_COMMANDS)
+STATIC_UNIT_TESTED uint8_t crsfCmdFrameCRC(void)
+{
+    // CRC includes type and payload
+    uint8_t crc = crc8_crsf_cmd(0, crsfFrame.frame.type);
+    for (int ii = 0; ii < crsfFrame.frame.frameLength - (CRSF_FRAME_LENGTH_TYPE_CRC + 1); ++ii) {
+        crc = crc8_crsf_cmd(crc, crsfFrame.frame.payload[ii]);
+    }
+    return crc;
+}
+#endif
+
 // Receive ISR callback, called back from serial port
 STATIC_UNIT_TESTED void crsfDataReceive(uint16_t c)
 {
@@ -164,8 +176,8 @@ STATIC_UNIT_TESTED void crsfDataReceive(uint16_t c)
 #if defined(USE_CRSF_COMMANDS)
             if (crsfFrame.frame.type == CRSF_FRAMETYPE_COMMAND) {
                 const uint8_t cmdCrc = crsfCmdFrameCRC();
-                const uint8_t crc2 = crsfFrameCRC();
-                if (crc2 == crsfFrame.bytes[fullFrameLength-1]) {
+                const uint8_t crcCmd = crsfFrameCRC();
+                if (crcCmd == crsfFrame.bytes[fullFrameLength-1]) {
                     handleCrsfCommand(&crsfFrame, &cmdCrc);
                 }
             }
@@ -173,17 +185,6 @@ STATIC_UNIT_TESTED void crsfDataReceive(uint16_t c)
         }
     }
 }
-
-STATIC_UNIT_TESTED uint8_t crsfCmdFrameCRC(void)
-{
-    // CRC includes type and payload
-    uint8_t crc = crc8_crsf_cmd(0, crsfFrame.frame.type);
-    for (int ii = 0; ii < crsfFrame.frame.frameLength - (CRSF_FRAME_LENGTH_TYPE_CRC + 1); ++ii) {
-        crc = crc8_crsf_cmd(crc, crsfFrame.frame.payload[ii]);
-    }
-    return crc;
-}
-#endif
 
 STATIC_UNIT_TESTED uint8_t crsfFrameStatus(void)
 {

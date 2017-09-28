@@ -69,3 +69,4 @@
 #if !defined(LED_STRIP)
 #undef USE_CRSF_COMMANDS
 #endif
+#endif

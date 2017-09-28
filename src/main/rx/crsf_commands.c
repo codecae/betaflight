@@ -47,23 +47,20 @@ bool updateLedColor(crsfLedParam_t *params) {
     return false;
 }
 
-bool handleCrsfCommand(crsfFrame_t *frame, const uint8_t *cmdCrc, const uint8_t *crc) {
+bool handleCrsfCommand(crsfFrame_t *frame, const uint8_t *cmdCrc) {
     uint16_t cmd = (frame->cmdFrame.command << 8) | frame->cmdFrame.subCommand;
-    uint8_t plCrc;
     uint8_t plCmdCrc;
     switch (cmd) {
         case CRSF_COMMAND_LED_DEFAULT: ;
-            plCrc = frame->frame.payload[CRSF_COMMAND_LENGTH_LED_DEFAULT];
             plCmdCrc = frame->frame.payload[CRSF_COMMAND_LENGTH_LED_DEFAULT-1];
-            if (*cmdCrc != plCmdCrc || *crc != plCrc) {
+            if (*cmdCrc != plCmdCrc) {
                 return false;
             }
             return updateLedColor(NULL);
             break;
         case CRSF_COMMAND_LED_OVERRIDE: ;
-            plCrc = frame->frame.payload[CRSF_COMMAND_LENGTH_LED_OVERRIDE];
             plCmdCrc = frame->frame.payload[CRSF_COMMAND_LENGTH_LED_OVERRIDE-1];
-            if (*cmdCrc != plCmdCrc || *crc != plCrc) {
+            if (*cmdCrc != plCmdCrc) {
                 return false;
             }
             crsfLedParam_t *params = (crsfLedParam_t *)&frame->cmdFrame.payload;
