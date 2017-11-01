@@ -211,9 +211,6 @@ static void taskTelemetry(timeUs_t currentTimeUs)
 // Everything that listens to VTX devices
 void taskVtxControl(uint32_t currentTime)
 {
-    if (ARMING_FLAG(ARMED))
-        return;
-
 #ifdef VTX_COMMON
     vtxCommonProcess(currentTime);
 #endif

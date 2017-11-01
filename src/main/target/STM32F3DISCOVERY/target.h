@@ -171,6 +171,9 @@
 #define USE_ESCSERIAL
 #define ESCSERIAL_TIMER_TX_PIN  PB8  // (HARDARE=0,PPM)
 
+#define UART2_TX_PIN            PA2
+#define UART2_RX_PIN            PA3
+
 #define UART3_TX_PIN            PB10 // PB10 (AF7)
 #define UART3_RX_PIN            PB11 // PB11 (AF7)
 

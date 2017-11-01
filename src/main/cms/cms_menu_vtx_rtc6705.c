@@ -29,10 +29,10 @@
 #include "cms/cms.h"
 #include "cms/cms_types.h"
 
+#include "drivers/vtx_common.h"
+
 #include "io/vtx_string.h"
 #include "io/vtx_rtc6705.h"
-#include "io/vtx_settings_config.h"
-
 
 static uint8_t cmsx_vtxBand;
 static uint8_t cmsx_vtxChannel;
@@ -59,7 +59,11 @@ static void cmsx_Vtx_ConfigRead(void)
 
 static void cmsx_Vtx_ConfigWriteback(void)
 {
-    vtxSettingsSaveBandChanAndPower(cmsx_vtxBand + 1, cmsx_vtxChannel, cmsx_vtxPower + VTX_RTC6705_MIN_POWER);
+    // update vtx_ settings
+    vtxSettingsConfigMutable()->band = cmsx_vtxBand + 1;
+    vtxSettingsConfigMutable()->channel = cmsx_vtxChannel;
+    vtxSettingsConfigMutable()->power = cmsx_vtxPower + VTX_RTC6705_MIN_POWER;
+    vtxSettingsConfigMutable()->freq = vtx58_Bandchan2Freq(cmsx_vtxBand + 1, cmsx_vtxChannel);
 }
 
 static long cmsx_Vtx_onEnter(void)

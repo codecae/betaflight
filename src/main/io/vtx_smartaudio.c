@@ -52,7 +52,6 @@
 #include "io/serial.h"
 #include "io/vtx_control.h"
 #include "io/vtx_smartaudio.h"
-#include "io/vtx_settings_config.h"
 #include "io/vtx_string.h"
 
 //#define SMARTAUDIO_DPRINTF
@@ -594,7 +593,6 @@ static void saDevSetFreq(uint16_t freq)
 void saSetFreq(uint16_t freq)
 {
     saDevSetFreq(freq);
-    vtxSettingsSaveFrequency(freq);
 }
 
 void saSetPitFreq(uint16_t freq)
@@ -628,7 +626,6 @@ static void saDevSetBandAndChannel(uint8_t band, uint8_t channel)
 void saSetBandAndChannel(uint8_t band, uint8_t channel)
 {
     saDevSetBandAndChannel(band, channel);
-    vtxSettingsSaveBandAndChannel(band + 1, channel + 1);
 }
 
 void saSetMode(int mode)
@@ -664,38 +661,6 @@ static void saDevSetPowerByIndex(uint8_t index)
 void saSetPowerByIndex(uint8_t index)
 {
     saDevSetPowerByIndex(index);
-    vtxSettingsSavePowerByIndex(index + 1);
-}
-
-static bool saEnterInitBandChanAndPower(uint8_t band, uint8_t channel, uint8_t power)
-{
-    if (!saValidateBandAndChannel(band, channel)) {
-        return false;
-    }
-    saDevSetBandAndChannel(band - 1, channel - 1);
-
-    uint8_t pwrIdx = constrain(power - 1, 0, VTX_SMARTAUDIO_POWER_COUNT - 1);
-    saDevSetPowerByIndex(pwrIdx);
-
-    // update 'vtx_freq' via band/channel table and enter
-    //  power-index value (in case current value is out of range)
-    vtxSettingsSaveFreqAndPower(vtx58_Bandchan2Freq(band, channel), pwrIdx + 1);
-
-    return true;
-}
-
-static void saEnterInitFreqAndPower(uint16_t freq, uint8_t power)
-{
-    if (saValidateFreq(freq)) {
-        saSetMode(0);        //need to be in FREE mode to set freq
-        saDevSetFreq(freq);
-    }
-
-    uint8_t pwrIdx = constrain(power - 1, 0, VTX_SMARTAUDIO_POWER_COUNT - 1);
-    saDevSetPowerByIndex(pwrIdx);
-
-    // enter power-index value (in case current value is out of range)
-    vtxSettingsSavePowerByIndex(pwrIdx + 1);
 }
 
 bool vtxSmartAudioInit(void)
@@ -784,14 +749,6 @@ void vtxSAProcess(uint32_t now)
     if (!initSettingsDoneFlag) {
         if (saDevice.version != 0) {
             initSettingsDoneFlag = true;
-            // if vtx_band!=0 then enter 'vtx_band/chan' values (and power)
-            if (!saEnterInitBandChanAndPower(vtxSettingsConfig()->band,
-                           vtxSettingsConfig()->channel, vtxSettingsConfig()->power)) {
-                // if vtx_band==0 then enter 'vtx_freq' value (and power)
-                if (vtxSettingsConfig()->band == 0) {
-                    saEnterInitFreqAndPower(vtxSettingsConfig()->freq, vtxSettingsConfig()->power);
-                }
-            }
         } else if (now - sa_lastTransmission >= 100) {
             // device is not ready; repeat query
             saGetSettings();

@@ -30,9 +30,10 @@
 #include "cms/cms_types.h"
 #include "cms/cms_menu_vtx_smartaudio.h"
 
+#include "drivers/vtx_common.h"
+
 #include "io/vtx_string.h"
 #include "io/vtx_smartaudio.h"
-#include "io/vtx_settings_config.h"
 
 // Interface to CMS
 
@@ -441,6 +442,12 @@ static long saCmsCommence(displayPort_t *pDisp, const void *self)
     }
 
     saSetPowerByIndex(saCmsPower - 1);
+
+    // update vtx_ settings
+    vtxSettingsConfigMutable()->band = saCmsBand;
+    vtxSettingsConfigMutable()->channel = saCmsChan;
+    vtxSettingsConfigMutable()->power = saCmsPower;
+    vtxSettingsConfigMutable()->freq = vtx58_Bandchan2Freq(saCmsBand, saCmsChan);
 
     return MENU_CHAIN_BACK;
 }

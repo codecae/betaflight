@@ -25,16 +25,14 @@
 
 typedef enum {
     VTXDEV_UNSUPPORTED = 0, // reserved for MSP
-    VTXDEV_RTC6705    = 1,
+    VTXDEV_RTC6705     = 1,
     // 2 reserved
-    VTXDEV_SMARTAUDIO = 3,
-    VTXDEV_TRAMP      = 4,
-    VTXDEV_UNKNOWN    = 0xFF,
+    VTXDEV_SMARTAUDIO  = 3,
+    VTXDEV_TRAMP       = 4,
+    VTXDEV_UNKNOWN     = 0xFF,
 } vtxDevType_e;
 
-
 // VTX magic numbers
-
 #define VTX_COMMON_BAND_USER      0
 #define VTX_COMMON_BAND_A         1
 #define VTX_COMMON_BAND_B         2
@@ -47,20 +45,69 @@ typedef enum {
 #define VTX_6705_POWER_25      1
 #define VTX_6705_POWER_200     2
 
-// SmartAudio "---", 25, 200, 500. 800 mW
+// SmartAudio "---", 25, 200, 500, 800 mW
 #define VTX_SA_POWER_OFF          0
 #define VTX_SA_POWER_25           1
 #define VTX_SA_POWER_200          2
 #define VTX_SA_POWER_500          3
 #define VTX_SA_POWER_800          4
 
-// Tramp "---", 25, 200, 400. 600 mW
+// Tramp "---", 25, 100, 200, 400, 600 mW
 #define VTX_TRAMP_POWER_OFF       0
 #define VTX_TRAMP_POWER_25        1
 #define VTX_TRAMP_POWER_100       2
 #define VTX_TRAMP_POWER_200       3
 #define VTX_TRAMP_POWER_400       4
 #define VTX_TRAMP_POWER_600       5
+
+#define VTX_SETTINGS_MIN_BAND       1
+#define VTX_SETTINGS_MAX_BAND       5
+#define VTX_SETTINGS_MIN_CHANNEL    1
+#define VTX_SETTINGS_MAX_CHANNEL    8
+
+#define VTX_SETTINGS_BAND_COUNT     (VTX_SETTINGS_MAX_BAND - VTX_SETTINGS_MIN_BAND + 1)
+#define VTX_SETTINGS_CHANNEL_COUNT  (VTX_SETTINGS_MAX_CHANNEL - VTX_SETTINGS_MIN_CHANNEL + 1)
+
+#define VTX_SETTINGS_DEFAULT_BAND       VTX_COMMON_BAND_FS
+#define VTX_SETTINGS_DEFAULT_CHANNEL    1
+
+#define VTX_SETTINGS_MAX_FREQUENCY_MHZ 5999          //max freq (in MHz) for 'vtx_freq' setting
+
+#if defined(VTX_SMARTAUDIO) || defined(VTX_TRAMP)
+
+#define VTX_SETTINGS_POWER_COUNT        5
+#define VTX_SETTINGS_DEFAULT_POWER      1
+#define VTX_SETTINGS_MIN_POWER          0
+#define VTX_SETTINGS_CONFIG
+#define VTX_SETTINGS_FREQCMD
+
+#elif defined(VTX_RTC6705)
+
+#include "io/vtx_rtc6705.h"
+
+#define VTX_SETTINGS_POWER_COUNT    VTX_RTC6705_POWER_COUNT
+#define VTX_SETTINGS_DEFAULT_POWER  VTX_RTC6705_DEFAULT_POWER
+#define VTX_SETTINGS_MIN_POWER      VTX_RTC6705_MIN_POWER
+#define VTX_SETTINGS_CONFIG
+
+#endif
+
+#ifdef VTX_SETTINGS_CONFIG
+
+#include "config/parameter_group.h"
+#include "config/parameter_group_ids.h"
+
+typedef struct vtxSettingsConfig_s {
+    uint8_t band;       // 1=A, 2=B, 3=E, 4=F(Airwaves/Fatshark), 5=Raceband
+    uint8_t channel;    // 1-8
+    uint8_t power;      // 0 = lowest
+    uint16_t freq;      // sets freq in MHz if band=0
+    uint8_t lowPowerDisarm; //use low power while disarmed
+} vtxSettingsConfig_t;
+
+PG_DECLARE(vtxSettingsConfig_t, vtxSettingsConfig);
+
+#endif  //VTX_SETTINGS_CONFIG
 
 struct vtxVTable_s;
 
@@ -128,3 +175,7 @@ bool vtxCommonGetPowerIndex(uint8_t *pIndex);
 bool vtxCommonGetPitMode(uint8_t *pOnOff);
 bool vtxCommonGetFrequency(uint16_t *pFreq);
 bool vtxCommonGetDeviceCapability(vtxDeviceCapability_t *pDeviceCapability);
+#if defined(VTX_SETTINGS_CONFIG)
+vtxSettingsConfig_t vtxCommonGetSettings(void);
+void vtxCommonUpdateSettings(vtxSettingsConfig_t config);
+#endif

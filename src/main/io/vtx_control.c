@@ -63,7 +63,7 @@ static void vtxUpdateBandAndChannel(uint8_t bandStep, uint8_t channelStep)
         locked = 1;
     }
 
-    if (!locked) {
+    if (!locked && vtxCommonDeviceRegistered()) {
         uint8_t band = 0, channel = 0;
         vtxCommonGetBandAndChannel(&band, &channel);
         vtxCommonSetBandAndChannel(band + bandStep, channel + channelStep);
@@ -96,7 +96,7 @@ void vtxUpdateActivatedChannel(void)
         locked = 1;
     }
 
-    if (!locked) {
+    if (!locked && vtxCommonDeviceRegistered()) {
         static uint8_t lastIndex = -1;
 
         for (uint8_t index = 0; index < MAX_CHANNEL_ACTIVATION_CONDITION_COUNT; index++) {
@@ -115,49 +115,53 @@ void vtxUpdateActivatedChannel(void)
 
 void vtxCycleBandOrChannel(const uint8_t bandStep, const uint8_t channelStep)
 {
-    uint8_t band = 0, channel = 0;
-    vtxDeviceCapability_t capability;
+    if (vtxCommonDeviceRegistered()) {
+        uint8_t band = 0, channel = 0;
+        vtxDeviceCapability_t capability;
 
-    bool haveAllNeededInfo = vtxCommonGetBandAndChannel(&band, &channel) && vtxCommonGetDeviceCapability(&capability);
-    if (!haveAllNeededInfo) {
-        return;
+        bool haveAllNeededInfo = vtxCommonGetBandAndChannel(&band, &channel) && vtxCommonGetDeviceCapability(&capability);
+        if (!haveAllNeededInfo) {
+            return;
+        }
+
+        int newChannel = channel + channelStep;
+        if (newChannel > capability.channelCount) {
+            newChannel = 1;
+        } else if (newChannel < 1) {
+            newChannel = capability.channelCount;
+        }
+
+        int newBand = band + bandStep;
+        if (newBand > capability.bandCount) {
+            newBand = 1;
+        } else if (newBand < 1) {
+            newBand = capability.bandCount;
+        }
+
+        vtxCommonSetBandAndChannel(newBand, newChannel);
     }
-
-    int newChannel = channel + channelStep;
-    if (newChannel > capability.channelCount) {
-        newChannel = 1;
-    } else if (newChannel < 1) {
-        newChannel = capability.channelCount;
-    }
-
-    int newBand = band + bandStep;
-    if (newBand > capability.bandCount) {
-        newBand = 1;
-    } else if (newBand < 1) {
-        newBand = capability.bandCount;
-    }
-
-    vtxCommonSetBandAndChannel(newBand, newChannel);
 }
 
 void vtxCyclePower(const uint8_t powerStep)
 {
-    uint8_t power = 0;
-    vtxDeviceCapability_t capability;
+    if (vtxCommonDeviceRegistered()) {
+        uint8_t power = 0;
+        vtxDeviceCapability_t capability;
 
-    bool haveAllNeededInfo = vtxCommonGetPowerIndex(&power) && vtxCommonGetDeviceCapability(&capability);
-    if (!haveAllNeededInfo) {
-        return;
+        bool haveAllNeededInfo = vtxCommonGetPowerIndex(&power) && vtxCommonGetDeviceCapability(&capability);
+        if (!haveAllNeededInfo) {
+            return;
+        }
+
+        int newPower = power + powerStep;
+        if (newPower >= capability.powerCount) {
+            newPower = 0;
+        } else if (newPower < 0) {
+            newPower = capability.powerCount;
+        }
+
+        vtxCommonSetPowerByIndex(newPower);
     }
-
-    int newPower = power + powerStep;
-    if (newPower >= capability.powerCount) {
-        newPower = 0;
-    } else if (newPower < 0) {
-        newPower = capability.powerCount;
-    }
-
-    vtxCommonSetPowerByIndex(newPower);
 }
 
 /**

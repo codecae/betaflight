@@ -29,10 +29,10 @@
 #include "cms/cms.h"
 #include "cms/cms_types.h"
 
+#include "drivers/vtx_common.h"
+
 #include "io/vtx_string.h"
 #include "io/vtx_tramp.h"
-#include "io/vtx_settings_config.h"
-
 
 char trampCmsStatusString[31] = "- -- ---- ----";
 //                               m bc ffff tppp
@@ -154,7 +154,10 @@ static long trampCmsCommence(displayPort_t *pDisp, const void *self)
     trampCommitChanges();
 
     // update'vtx_' settings
-    vtxSettingsSaveBandChanAndPower(trampCmsBand, trampCmsChan, trampCmsPower);
+    vtxSettingsConfigMutable()->band = trampCmsBand;
+    vtxSettingsConfigMutable()->channel = trampCmsChan;
+    vtxSettingsConfigMutable()->power = trampCmsPower;
+    vtxSettingsConfigMutable()->freq = vtx58_Bandchan2Freq(trampCmsBand, trampCmsChan);
 
     return MENU_CHAIN_BACK;
 }

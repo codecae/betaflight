@@ -34,6 +34,7 @@ extern "C" {
     #include "config/parameter_group_ids.h"
     #include "sensors/battery.h"
     #include "drivers/buf_writer.h"
+    #include "drivers/vtx_common.h"
     #include "flight/mixer.h"
     #include "flight/servos.h"
     #include "flight/pid.h"

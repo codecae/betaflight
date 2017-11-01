@@ -261,10 +261,12 @@ const uint8_t vtxTrampPi[] = {           // Spektrum Spec    Tx menu  Tx sends  
 #ifdef USE_VTX_COMMON_FREQ_API
       uint16_t freq = SpektrumVtxfrequencyTable[vtx.band][vtx.channel];
       uint16_t currentFreq = 0;
-      vtxCommonGetFrequency(&currentFreq);
-      if (currentFreq != freq) {
-        vtxCommonSetBandAndChannel(VTX_COMMON_BAND_USER, vtx.channel);
-        vtxCommonSetFrequency(freq);
+      if (vtxCommonDeviceRegistered()) {
+        vtxCommonGetFrequency(&currentFreq);
+        if (currentFreq != freq) {
+          vtxCommonSetBandAndChannel(VTX_COMMON_BAND_USER, vtx.channel);
+          vtxCommonSetFrequency(freq);
+        }
       }
 
 #else
@@ -273,25 +275,31 @@ const uint8_t vtxTrampPi[] = {           // Spektrum Spec    Tx menu  Tx sends  
       uint8_t channel = vtx.channel +1; // 0 based to 1 based
 
       uint8_t currentBand = 0, currentChannel = 0;
-      vtxCommonGetBandAndChannel(&currentBand, &currentChannel);
-      if ((currentBand != band) || (currentChannel != channel)) {
-        vtxCommonSetBandAndChannel(band, channel);
+      if (vtxCommonDeviceRegistered()) {
+        vtxCommonGetBandAndChannel(&currentBand, &currentChannel);
+        if ((currentBand != band) || (currentChannel != channel)) {
+            vtxCommonSetBandAndChannel(band, channel);
+        }
       }
 #endif
 
       // Seems to be no unified internal VTX API std for popwer levels/indexes, VTX device brand specific.
       uint8_t power = convertSpektrumVtxPowerIndex(vtx.power);
       uint8_t currentPower = 0;
-      vtxCommonGetPowerIndex(&currentPower);
-      if (currentPower != power) {
-        vtxCommonSetPowerByIndex(power);
+      if (vtxCommonDeviceRegistered()) {
+        vtxCommonGetPowerIndex(&currentPower);
+        if (currentPower != power) {
+          vtxCommonSetPowerByIndex(power);
+        }
       }
 
       // Everyone seems to agree on what PIT ON/OFF means
       uint8_t currentPitMode = 0;
-      vtxCommonGetPitMode(&currentPitMode);
-      if (currentPitMode != vtx.pitMode) {
-        vtxCommonSetPitMode(vtx.pitMode);
+      if (vtxCommonDeviceRegistered()) {
+        vtxCommonGetPitMode(&currentPitMode);
+        if (currentPitMode != vtx.pitMode) {
+            vtxCommonSetPitMode(vtx.pitMode);
+        }
       }
     }
 
