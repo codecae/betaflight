@@ -303,16 +303,27 @@ float firFilterDenoiseUpdate(firFilterDenoise_t *filter, float input)
     }
 }
 
-// ledvinap's proposed RC+FIR2 Biquad-- 1st order IIR, RC filter k
-void biquadRCFIR2FilterInit(biquadFilter_t *filter, uint16_t f_cut, float dT)
+// PT1 alternative to the BiquadRC+FIR2 filter
+void pt1lmaFilterInit(pt1lmaFilter_t *filter, uint16_t f_cut, float dT, uint8_t windowSize, float weight)
 {
     float RC = 1.0f / ( 2.0f * M_PI_FLOAT * f_cut );
-    float k = dT / (RC + dT);
-    filter->b0 = k / 2;
-    filter->b1 = k / 2;
-    filter->b2 = 0;
-    filter->a1 = -(1 - k);
-    filter->a2 = 0;
+    filter->pt1.state = 0;
+    filter->pt1.k = dT / (RC + dT);
+    filter->movingWindowIndex = 0;
+    filter->windowSize = windowSize;
+    filter->weight = weight;
+}
+
+FAST_CODE float pt1lmaFilterUpdate(pt1lmaFilter_t *filter, float input)
+{
+    const float applied = pt1FilterApply(&filter->pt1, input);
+
+    filter->movingSum -= filter->buf[filter->movingWindowIndex];
+    filter->buf[filter->movingWindowIndex] = applied;
+    filter->movingSum += applied;
+    filter->movingWindowIndex = (filter->movingWindowIndex + 1) % filter->windowSize;
+
+    return applied + (((filter->movingSum  / (float)filter->windowSize) - applied) * filter->weight);
 }
 
 // Fast two-state Kalman

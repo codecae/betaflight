@@ -307,6 +307,9 @@
 // #define MSP_BIND                 240    //in message          no param
 // #define MSP_ALARMS               242
 
+#define MSP_PT1LMA               230
+#define MSP_SET_PT1LMA           231
+
 #define MSP_EEPROM_WRITE         250    //in message          no param
 #define MSP_RESERVE_1            251    //reserved for system usage
 #define MSP_RESERVE_2            252    //reserved for system usage

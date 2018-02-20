@@ -25,6 +25,8 @@
 #define MAX_FIR_DENOISE_WINDOW_SIZE 120
 #endif
 
+#define MAX_PT1LMA_MAX_WINDOW_SIZE 12
+
 struct filter_s;
 typedef struct filter_s filter_t;
 
@@ -44,6 +46,15 @@ typedef struct biquadFilter_s {
     float b0, b1, b2, a1, a2;
     float x1, x2, y1, y2;
 } biquadFilter_t;
+
+typedef struct pt1lmaFilter_s {
+    pt1Filter_t pt1;
+    int movingWindowIndex;
+    int windowSize;
+    float weight;
+    float movingSum;
+    float buf[MAX_PT1LMA_MAX_WINDOW_SIZE];
+} pt1lmaFilter_t;
 
 typedef struct firFilterDenoise_s {
     int filledCount;
@@ -96,7 +107,8 @@ float biquadFilterApplyDF1(biquadFilter_t *filter, float input);
 float biquadFilterApply(biquadFilter_t *filter, float input);
 float filterGetNotchQ(uint16_t centerFreq, uint16_t cutoff);
 
-void biquadRCFIR2FilterInit(biquadFilter_t *filter, uint16_t f_cut, float dT);
+void pt1lmaFilterInit(pt1lmaFilter_t *filter, uint16_t f_cut, float dT, uint8_t windowSize, float weight);
+float pt1lmaFilterUpdate(pt1lmaFilter_t *filter, float input);
 
 void fastKalmanInit(fastKalman_t *filter, float q, float r, float p);
 float fastKalmanUpdate(fastKalman_t *filter, float input);

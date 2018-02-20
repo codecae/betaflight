@@ -1258,6 +1258,11 @@ static bool mspProcessOutCommand(uint8_t cmdMSP, sbuf_t *dst)
 
         break;
 #endif
+    case MSP_PT1LMA:
+        sbufWriteU16(dst, gyroConfig()->gyro_soft_lpf_hz_2);
+        sbufWriteU8(dst, gyroConfig()->gyro_pt1lma_depth);
+        sbufWriteU8(dst, gyroConfig()->gyro_pt1lma_weight);
+        break;
     default:
         return false;
     }
@@ -1536,6 +1541,12 @@ static mspResult_e mspProcessInCommand(uint8_t cmdMSP, sbuf_t *src)
         compassConfigMutable()->mag_declination = sbufReadU16(src) * 10;
         break;
 #endif
+
+    case MSP_SET_PT1LMA:
+        gyroConfigMutable()->gyro_soft_lpf_hz_2 = sbufReadU16(src);
+        gyroConfigMutable()->gyro_pt1lma_depth = sbufReadU8(src);
+        gyroConfigMutable()->gyro_pt1lma_weight = sbufReadU8(src);
+        break;
 
     case MSP_SET_MOTOR:
         for (int i = 0; i < getMotorCount(); i++) {
