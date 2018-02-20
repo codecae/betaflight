@@ -125,7 +125,7 @@ typedef struct gyroSensor_s {
 #elif defined(USE_GYRO_BIQUAD_RC_FIR2)
     // gyro biquad RC FIR2 filter
     filterApplyFnPtr biquadRCFIR2ApplyFn;
-    biquadFilter_t biquadRCFIR2[XYZ_AXIS_COUNT];
+    biquadRCFIR2Filter_t biquadRCFIR2[XYZ_AXIS_COUNT];
 #endif
 } gyroSensor_t;
 
@@ -584,7 +584,7 @@ static void gyroInitFilterBiquadRCFIR2(gyroSensor_t *gyroSensor, uint16_t lpfHz)
     const uint32_t gyroFrequencyNyquist = 1000000 / 2 / gyro.targetLooptime;
     const float gyroDt = (float) gyro.targetLooptime * 0.000001f;
     if (lpfHz && lpfHz <= gyroFrequencyNyquist) {  // Initialisation needs to happen once samplingrate is known
-        gyroSensor->biquadRCFIR2ApplyFn = (filterApplyFnPtr)biquadFilterApply;
+        gyroSensor->biquadRCFIR2ApplyFn = (filterApplyFnPtr)biquadRCFIR2FilterUpdate;
         for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
             biquadRCFIR2FilterInit(&gyroSensor->biquadRCFIR2[axis], lpfHz, gyroDt);
         }

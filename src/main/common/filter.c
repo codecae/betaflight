@@ -303,16 +303,38 @@ float firFilterDenoiseUpdate(firFilterDenoise_t *filter, float input)
     }
 }
 
-// ledvinap's proposed RC+FIR2 Biquad-- 1st order IIR, RC filter k
-void biquadRCFIR2FilterInit(biquadFilter_t *filter, uint16_t f_cut, float dT)
+// ledvinap's proposed RC+FIR2 Biquad-- equivalent to 'static' fast Kalman, without error estimation
+void biquadRCFIR2FilterInit(biquadRCFIR2Filter_t *filter, uint16_t f_cut, float dT)
 {
     float RC = 1.0f / ( 2.0f * M_PI_FLOAT * f_cut );
     float k = dT / (RC + dT);
-    filter->b0 = k / 2;
-    filter->b1 = k / 2;
-    filter->b2 = 0;
-    filter->a1 = -(1 - k);
-    filter->a2 = 0;
+    filter->biquad.b0 = k / 2;
+    filter->biquad.b1 = k / 2;
+    filter->biquad.b2 = 0;
+    filter->biquad.a1 = -(1 - k);
+    filter->biquad.a2 = 0;
+    filter->movingWindowIndex = 0;
+    filter->windowSize = MAX_BIQUAD_RC_FIR2_AVG_WINDOW_SIZE;
+    for (int i = 0; i < MAX_BIQUAD_RC_FIR2_AVG_WINDOW_SIZE; ++i) {
+        filter->buf[i] = 0;
+    }
+}
+
+FAST_CODE float biquadRCFIR2FilterUpdate(biquadRCFIR2Filter_t *filter, float input)
+{
+    const float applied = biquadFilterApply(&filter->biquad, input);
+    // Shift lagging sample buffer, append new applied value, and update moving sum
+    filter->movingSum -= filter->buf[2];
+    memmove(&filter->buf[1], &filter->buf[0], (filter->windowSize - 1)*sizeof(float));
+    filter->buf[0] = applied;
+    filter->movingSum += applied;
+    // Return biquad applied value if window is not loaded completely
+    if (filter->movingWindowIndex < filter->windowSize) {
+        filter->movingWindowIndex++;
+        return applied;
+    }
+    // Otherwise, return the lagging moving average
+    return filter->movingSum  / (float)filter->windowSize;
 }
 
 // Fast two-state Kalman
