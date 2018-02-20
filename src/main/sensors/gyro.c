@@ -122,10 +122,10 @@ typedef struct gyroSensor_s {
     // gyro kalman filter
     filterApplyFnPtr fastKalmanApplyFn;
     fastKalman_t fastKalman[XYZ_AXIS_COUNT];
-#elif defined(USE_GYRO_BIQUAD_RC_FIR2)
-    // gyro biquad RC FIR2 filter
-    filterApplyFnPtr biquadRCFIR2ApplyFn;
-    biquadFilter_t biquadRCFIR2[XYZ_AXIS_COUNT];
+#elif defined(USE_GYRO_PT13MA)
+    // gyro PT13MA filter
+    filterApplyFnPtr pt13maApplyFn;
+    pt13maFilter_t pt13ma[XYZ_AXIS_COUNT];
 #endif
 } gyroSensor_t;
 
@@ -137,8 +137,8 @@ STATIC_UNIT_TESTED gyroDev_t * const gyroDevPtr = &gyroSensor1.gyroDev;
 
 #if defined(USE_GYRO_FAST_KALMAN)
 static void gyroInitFilterKalman(gyroSensor_t *gyroSensor, uint16_t gyro_filter_q, uint16_t gyro_filter_r, uint16_t gyro_filter_p);
-#elif defined (USE_GYRO_BIQUAD_RC_FIR2)
-static void gyroInitFilterBiquadRCFIR2(gyroSensor_t *gyroSensor, uint16_t lpfHz);
+#elif defined (USE_GYRO_PT13MA)
+static void gyroInitFilterPt13ma(gyroSensor_t *gyroSensor, uint16_t lpfHz);
 #endif
 static void gyroInitSensorFilters(gyroSensor_t *gyroSensor);
 
@@ -577,16 +577,16 @@ static void gyroInitFilterKalman(gyroSensor_t *gyroSensor, uint16_t gyro_filter_
         }
     }
 }
-#elif defined(USE_GYRO_BIQUAD_RC_FIR2)
-static void gyroInitFilterBiquadRCFIR2(gyroSensor_t *gyroSensor, uint16_t lpfHz)
+#elif defined(USE_GYRO_PT13MA)
+static void gyroInitFilterPt13ma(gyroSensor_t *gyroSensor, uint16_t lpfHz)
 {
-    gyroSensor->biquadRCFIR2ApplyFn = nullFilterApply;
+    gyroSensor->pt13maApplyFn = nullFilterApply;
     const uint32_t gyroFrequencyNyquist = 1000000 / 2 / gyro.targetLooptime;
     const float gyroDt = (float) gyro.targetLooptime * 0.000001f;
     if (lpfHz && lpfHz <= gyroFrequencyNyquist) {  // Initialisation needs to happen once samplingrate is known
-        gyroSensor->biquadRCFIR2ApplyFn = (filterApplyFnPtr)biquadFilterApply;
+        gyroSensor->pt13maApplyFn = (filterApplyFnPtr)pt13maFilterUpdate;
         for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
-            biquadRCFIR2FilterInit(&gyroSensor->biquadRCFIR2[axis], lpfHz, gyroDt);
+            pt13maFilterInit(&gyroSensor->pt13ma[axis], lpfHz, gyroDt);
         }
     }
 }
@@ -599,8 +599,8 @@ static void gyroInitSensorFilters(gyroSensor_t *gyroSensor)
 #endif
 #if defined(USE_GYRO_FAST_KALMAN)
     gyroInitFilterKalman(gyroSensor, gyroConfig()->gyro_filter_q, gyroConfig()->gyro_filter_r, gyroConfig()->gyro_filter_p);
-#elif defined(USE_GYRO_BIQUAD_RC_FIR2)
-    gyroInitFilterBiquadRCFIR2(gyroSensor, gyroConfig()->gyro_soft_lpf_hz_2);
+#elif defined(USE_GYRO_PT13MA)
+    gyroInitFilterPt13ma(gyroSensor, gyroConfig()->gyro_soft_lpf_hz_2);
 #endif
     gyroInitFilterLpf(gyroSensor, gyroConfig()->gyro_soft_lpf_hz);
     gyroInitFilterNotch1(gyroSensor, gyroConfig()->gyro_soft_notch_hz_1, gyroConfig()->gyro_soft_notch_cutoff_1);
@@ -820,8 +820,8 @@ static FAST_CODE void gyroUpdateSensor(gyroSensor_t *gyroSensor, timeUs_t curren
             float gyroADCf = gyroSensor->gyroDev.gyroADC[axis] * gyroSensor->gyroDev.scale;
 #if defined(USE_GYRO_FAST_KALMAN)
             gyroADCf = gyroSensor->fastKalmanApplyFn((filter_t *)&gyroSensor->fastKalman[axis], gyroADCf);
-#elif defined(USE_GYRO_BIQUAD_RC_FIR2)
-            gyroADCf = gyroSensor->biquadRCFIR2ApplyFn((filter_t *)&gyroSensor->biquadRCFIR2[axis], gyroADCf);
+#elif defined(USE_GYRO_PT13MA)
+            gyroADCf = gyroSensor->pt13maApplyFn((filter_t *)&gyroSensor->pt13ma[axis], gyroADCf);
 #endif
 #ifdef USE_GYRO_DATA_ANALYSE
             gyroADCf = gyroSensor->notchFilterDynApplyFn((filter_t *)&gyroSensor->notchFilterDyn[axis], gyroADCf);
@@ -847,9 +847,9 @@ static FAST_CODE void gyroUpdateSensor(gyroSensor_t *gyroSensor, timeUs_t curren
 #if defined(USE_GYRO_FAST_KALMAN)
             // apply fast kalman
             gyroADCf = gyroSensor->fastKalmanApplyFn((filter_t *)&gyroSensor->fastKalman[axis], gyroADCf);
-#elif defined(USE_GYRO_BIQUAD_RC_FIR2)
+#elif defined(USE_GYRO_PT13MA)
             // apply biquad RC+FIR2
-            gyroADCf = gyroSensor->biquadRCFIR2ApplyFn((filter_t *)&gyroSensor->biquadRCFIR2[axis], gyroADCf);
+            gyroADCf = gyroSensor->pt13maApplyFn((filter_t *)&gyroSensor->pt13ma[axis], gyroADCf);
 #endif
 
 #ifdef USE_GYRO_DATA_ANALYSE
