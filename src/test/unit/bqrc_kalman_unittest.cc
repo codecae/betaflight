@@ -61,48 +61,57 @@ double var(double *x, int startIndex, int n) {
 
 TEST(BQRCKalmanTest, BQRCKalmanRandomCorrelationTest)
 {
+    // Input parameters exposed to pilot
+    const uint16_t q = 400;
+    const uint16_t r = 88;
+    const uint8_t p = 0;
+    const float rate = 32000;
+
     fastKalman_t fkfFilter;
+    fastKalmanInit(&fkfFilter, q, r, p);
+
+    const float dT = 1 / rate;
+    const float bqrcQ = fkfFilter.q;
+    const float bqrcR = fkfFilter.r;
+    const float bqrcK = 2 * sqrt(bqrcQ) / (sqrt(bqrcQ + 4 * bqrcR) + sqrt(bqrcQ));
+    const float cutoffFrequency = 1 / (2 * M_PI_FLOAT * 0.5f * dT * (1 / bqrcK - 2));
+
     biquadFilter_t bqrcFilter;
+    biquadRCFIR2FilterInit(&bqrcFilter, cutoffFrequency, dT);
+
     double kalmanVec[SAMPLE_SET_SIZE];
     double bqrcVec[SAMPLE_SET_SIZE];
-    double lastK = 0.0f;
+    double lastK = 0;
     int kConvergeSample = 0;
-    uint16_t randVal;
-    uint16_t q = 400;
-    uint16_t r = 88;
-    uint8_t p = 0;
-    float dT = 1.0f / 32000.0f;
-    float bqrcQ = (float) q * 1e-6f;
-    float bqrcR = (float) r * 1e-3f;
-    float bqrcK = 2.0f * sqrt(bqrcQ) / (sqrt(bqrcQ + 4.0f * bqrcR) + sqrt(bqrcQ));
-    float f_cut = 1.0f / (2.0f * M_PI_FLOAT * (0.5f * dT * ((1.0f / bqrcK) - 2.0f)));
-    fastKalmanInit(&fkfFilter, q, r, p);
-    biquadRCFIR2FilterInit(&bqrcFilter, f_cut, dT);
 
     srand(time(NULL));
-    for (int i=0; i < SAMPLE_SET_SIZE; i++) {
-        randVal = rand() % 2000;
-        kalmanVec[i] = fastKalmanUpdate(&fkfFilter, (float)randVal);
-        bqrcVec[i] = biquadFilterApply(&bqrcFilter, (float)randVal);
+    for (int i = 0; i < SAMPLE_SET_SIZE; i++) {
+        const float randVal = (rand() % 20000) * 1e-1f;
+
+        kalmanVec[i] = fastKalmanUpdate(&fkfFilter, randVal);
+        bqrcVec[i] = biquadFilterApply(&bqrcFilter, randVal);
+
         if (fkfFilter.k > lastK) {
             lastK = fkfFilter.k;
         } else if (kConvergeSample == 0) {
             kConvergeSample = i;
         }
     }
-    const int numSamples = SAMPLE_SET_SIZE-1-kConvergeSample;  // offset for index value
+
+    const int numSamples = SAMPLE_SET_SIZE - 1 - kConvergeSample;  // offset for index value
     const float correlation = corr(kalmanVec, bqrcVec, kConvergeSample, numSamples);
-    const float convergeTimeMs = ((kConvergeSample + 1) / (1/dT)) * 1000.0f;
+    const float convergeTimeMs = (kConvergeSample + 1) * dT * 1000;
     const double fkfMean = mean(kalmanVec, kConvergeSample, numSamples);
     const double bqrcMean = mean(bqrcVec, kConvergeSample, numSamples);
     const double meanDifference = abs(fkfMean - bqrcMean);
     const double fkfDispersion = var(kalmanVec, kConvergeSample, numSamples) / fkfMean;
     const double bqrcDispersion = var(bqrcVec, kConvergeSample, numSamples) / bqrcMean;
     const double dispersionDifference = abs(fkfDispersion-bqrcDispersion);
+
     printf("\n[:::] FKF Q : %d\n", q);
     printf("[:::] FKF R : %d\n", r);
-    printf("[:::] BQRC Cutoff Frequency: %.10f\n", f_cut);
-    printf("[:::] FKF K converged at sample %d (%.3fms)\n", kConvergeSample+1, convergeTimeMs);
+    printf("[:::] BQRC Cutoff Frequency: %.10f\n", cutoffFrequency);
+    printf("[:::] FKF K converged at sample %d (%.3fms)\n", kConvergeSample + 1, convergeTimeMs);
     printf("===== Post-transient Statistics (%d samples) =====\n", numSamples);
     printf("[:::] Correlation : %.10e\n", correlation);
     printf("[:::] Mean Difference : %.10e\n", meanDifference);
@@ -112,59 +121,73 @@ TEST(BQRCKalmanTest, BQRCKalmanRandomCorrelationTest)
 
 TEST(BQRCKalmanTest, BQRCKalmanFlightDataCorrelationTest)
 {
+    // Input parameters exposed to pilot
+    const uint16_t q = 400;
+    const uint16_t r = 88;
+    const uint8_t p = 0;
+    const float rate = 32000;
+
     fastKalman_t fkfFilter;
+    fastKalmanInit(&fkfFilter, q, r, p);
+
+    const float dT = 1 / rate;
+    const float bqrcQ = fkfFilter.q;
+    const float bqrcR = fkfFilter.r;
+    const float bqrcK = 2 * sqrt(bqrcQ) / (sqrt(bqrcQ + 4 * bqrcR) + sqrt(bqrcQ));
+    const float cutoffFrequency = 1 / (2 * M_PI_FLOAT * 0.5f * dT * (1 / bqrcK - 2));
+
     biquadFilter_t bqrcFilter;
+    biquadRCFIR2FilterInit(&bqrcFilter, cutoffFrequency, dT);
+
     double kalmanVec[SAMPLE_SET_SIZE];
     double bqrcVec[SAMPLE_SET_SIZE];
-    double lastK = 0.0f;
+    double lastK = 0;
     int kConvergeSample = 0;
+
+    srand(time(NULL));
     int samplesEvaluated = 0;
     FILE *file;
     FILE *out;
-    int input = 0;
-    uint16_t q = 400;
-    uint16_t r = 88;
-    uint8_t p = 0;
-    float dT = 1.0f / 32000.0f;
-    float bqrcQ = (float) q * 1e-6f;
-    float bqrcR = (float) r * 1e-3f;
-    float bqrcK = 2.0f * sqrt(bqrcQ) / (sqrt(bqrcQ + 4.0f * bqrcR) + sqrt(bqrcQ));
-    float f_cut = 1.0f / (2.0f * M_PI_FLOAT * (0.5f * dT * ((1.0f / bqrcK) - 2.0f)));
-    fastKalmanInit(&fkfFilter, q, r, p);
-    biquadRCFIR2FilterInit(&bqrcFilter, f_cut, dT);
-
     file = fopen("unit/flightDebugData.csv", "r");
     out = fopen("unit/flightDebugOut.csv", "w");
-    fscanf(file, "%d", &input);
-    for (int i=0; i < SAMPLE_SET_SIZE; i++) {
+
+    for (int i = 0; i < SAMPLE_SET_SIZE; i++) {
+        int input = 0;
+        fscanf(file, "%d", &input);
+
         if (feof(file)) {
             break;
         }
-        kalmanVec[i] = fastKalmanUpdate(&fkfFilter, (float)input);
-        bqrcVec[i] = biquadFilterApply(&bqrcFilter, (float)input);
+
+        kalmanVec[i] = fastKalmanUpdate(&fkfFilter, input);
+        bqrcVec[i] = biquadFilterApply(&bqrcFilter, input);
+
         if (fkfFilter.k > lastK) {
             lastK = fkfFilter.k;
         } else if (kConvergeSample == 0) {
             kConvergeSample = i;
         }
-        fprintf(out,"%d,%15.10f,%15.10f,%15.10f\n", input, fkfFilter.k, kalmanVec[i], bqrcVec[i]);
-        fscanf(file," %d", &input);
+
+        fprintf(out, "%d,%15.10f,%15.10f,%15.10f\n", input, fkfFilter.k, kalmanVec[i], bqrcVec[i]);
+        fscanf(file, " %d", &input);
         ++samplesEvaluated;
     }
+
     fclose(file);
     fclose(out);
-    const int numSamples = samplesEvaluated-1-kConvergeSample;  // offset for index value
+
+    const int numSamples = samplesEvaluated - 1 - kConvergeSample;  // offset for index value
     const float correlation = corr(kalmanVec, bqrcVec, kConvergeSample, numSamples);
-    const float convergeTimeMs = ((kConvergeSample + 1) / (1/dT)) * 1000.0f;
+    const float convergeTimeMs = (kConvergeSample + 1) * dT * 1000;
     const double fkfMean = mean(kalmanVec, kConvergeSample, numSamples);
     const double bqrcMean = mean(bqrcVec, kConvergeSample, numSamples);
     const double meanDifference = abs(fkfMean - bqrcMean);
     const double fkfDispersion = var(kalmanVec, kConvergeSample, numSamples) / fkfMean;
     const double bqrcDispersion = var(bqrcVec, kConvergeSample, numSamples) / bqrcMean;
-    const double dispersionDifference = abs(fkfDispersion-bqrcDispersion);
+    const double dispersionDifference = abs(fkfDispersion - bqrcDispersion);
     printf("\n[:::] FKF Q : %d\n", q);
     printf("[:::] FKF R : %d\n", r);
-    printf("[:::] BQRC Cutoff Frequency: %.10f\n", f_cut);
+    printf("[:::] BQRC Cutoff Frequency: %.10f\n", cutoffFrequency);
     printf("[:::] FKF K converged at sample %d (%.3fms)\n", kConvergeSample+1, convergeTimeMs);
     printf("===== Post-transient Statistics (%d samples) =====\n", numSamples);
     printf("[:::] Correlation : %.10e\n", correlation);
