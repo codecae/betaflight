@@ -1928,7 +1928,7 @@ static void cliFlashRead(char *cmdline)
 #endif
 
 #ifdef USE_VTX_CONTROL
-static void printVtx(uint8_t dumpMask, const vtxConfig_t *vtxConfig, const vtxConfig_t *vtxConfigDefault)
+static void printVtx(uint8_t dumpMask, const vtxControlConfig_t *vtxConfig, const vtxControlConfig_t *vtxConfigDefault)
 {
     // print out vtx channel settings
     const char *format = "vtx %u %u %u %u %u %u";
@@ -1968,12 +1968,12 @@ static void cliVtx(char *cmdline)
     const char *ptr;
 
     if (isEmpty(cmdline)) {
-        printVtx(DUMP_MASTER, vtxConfig(), NULL);
+        printVtx(DUMP_MASTER, vtxControlConfig(), NULL);
     } else {
         ptr = cmdline;
         i = atoi(ptr++);
         if (i < MAX_CHANNEL_ACTIVATION_CONDITION_COUNT) {
-            vtxChannelActivationCondition_t *cac = &vtxConfigMutable()->vtxChannelActivationConditions[i];
+            vtxChannelActivationCondition_t *cac = &vtxControlConfigMutable()->vtxChannelActivationConditions[i];
             uint8_t validArgumentCount = 0;
             ptr = nextArg(ptr);
             if (ptr) {
@@ -3671,7 +3671,7 @@ static void printConfig(char *cmdline, bool doDiff)
 
 #ifdef USE_VTX_CONTROL
         cliPrintHashLine("vtx");
-        printVtx(dumpMask, &vtxConfig_Copy, vtxConfig());
+        printVtx(dumpMask, &vtxControlConfig_Copy, vtxControlConfig());
 #endif
 
         cliPrintHashLine("rxfail");

@@ -17,23 +17,15 @@
 
 #pragma once
 
-#include <stdint.h>
+#define VTX_BAND_COUNT 5
+#define VTX_CHAN_COUNT 8
 
 #include "platform.h"
-#include "common/time.h"
-#include "pg/pg.h"
 
-typedef struct vtxSettingsConfig_s {
-    uint8_t band;           // 1=A, 2=B, 3=E, 4=F(Airwaves/Fatshark), 5=Raceband
-    uint8_t channel;        // 1-8
-    uint8_t power;          // 0 = lowest
-    uint16_t freq;          // sets freq in MHz if band=0
-    uint8_t pitmode;        // enable/disable pitmode
-    uint16_t pitModeFreq;   // sets out-of-range pitmode frequency
-    uint8_t lowPowerDisarm;
-} vtxSettingsConfig_t;
+extern const uint16_t vtxfrequencyTable[VTX_BAND_COUNT][VTX_CHAN_COUNT];
+extern const char * const vtxBandNames[];
+extern const char * const vtxChannelNames[];
+extern const char vtxBandLetter[];
 
-PG_DECLARE(vtxSettingsConfig_t, vtxSettingsConfig);
-
-void vtxInit(void);
-void vtxUpdate(timeUs_t currentTimeUs);
+bool vtxFreq2Bandchan(uint16_t freq, uint8_t *pBand, uint8_t *pChannel);
+uint16_t vtxBandchan2Freq(uint8_t band, uint8_t channel);

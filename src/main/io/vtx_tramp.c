@@ -605,7 +605,7 @@ bool vtxTrampInit(void)
     if (portConfig) {
         portOptions_e portOptions = 0;
 #if defined(USE_VTX_COMMON)
-        portOptions = portOptions | (vtxConfig()->halfDuplex ? SERIAL_BIDIR : SERIAL_UNIDIR);
+        portOptions = portOptions | (vtxControlConfig()->halfDuplex ? SERIAL_BIDIR : SERIAL_UNIDIR);
 #else
         portOptions = SERIAL_BIDIR;
 #endif

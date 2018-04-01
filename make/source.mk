@@ -197,7 +197,11 @@ FC_SRC = \
             io/vtx_rtc6705.c \
             io/vtx_smartaudio.c \
             io/vtx_tramp.c \
-            io/vtx_control.c
+            io/vtx_control.c \
+            vtx/vtxFrequencyTable.c \
+            vtx/vtx.c \
+            vtx/vtxSmartAudio.c \
+            vtx/vtxTramp.c
 
 COMMON_DEVICE_SRC = \
             $(CMSIS_SRC) \

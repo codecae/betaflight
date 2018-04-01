@@ -17,23 +17,35 @@
 
 #pragma once
 
-#include <stdint.h>
+#include <stdbool.h>
 
-#include "platform.h"
 #include "common/time.h"
+#include "interface/vtx.h"
 #include "pg/pg.h"
 
-typedef struct vtxSettingsConfig_s {
-    uint8_t band;           // 1=A, 2=B, 3=E, 4=F(Airwaves/Fatshark), 5=Raceband
-    uint8_t channel;        // 1-8
-    uint8_t power;          // 0 = lowest
-    uint16_t freq;          // sets freq in MHz if band=0
-    uint8_t pitmode;        // enable/disable pitmode
-    uint16_t pitModeFreq;   // sets out-of-range pitmode frequency
-    uint8_t lowPowerDisarm;
-} vtxSettingsConfig_t;
+typedef struct vtxConfig_s {
+    uint8_t customFrequencyMode;
+    uint8_t band;
+    uint8_t channel;
+    uint8_t power;
+    uint16_t frequency;
+    uint16_t pitModeFrequency;
+} vtxConfig_t;
 
-PG_DECLARE(vtxSettingsConfig_t, vtxSettingsConfig);
+PG_DECLARE(vtxConfig_t, vtxConfig);
 
-void vtxInit(void);
-void vtxUpdate(timeUs_t currentTimeUs);
+typedef bool (*vtxProcessFn_t)(void);
+
+typedef struct vtxProvider_s {
+    const uint8_t updateSteps;
+    const vtxProcessFn_t *updateStepFn;
+    const vtxProcessFn_t processResponse;
+    void (*setPitMode)(const bool);
+} vtxProvider_t;
+
+bool vtxProviderIsRegistered();
+bool registerVtxProvider(vtxProvider_t *provider);
+void vtxSetPitMode(const bool pitModeEnabled);
+void vtxProviderUpdate(timeUs_t currentTimeUs);
+
+extern const vtxConfig_t *vtxCurrentState;

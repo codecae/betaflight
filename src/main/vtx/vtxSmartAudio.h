@@ -17,23 +17,12 @@
 
 #pragma once
 
-#include <stdint.h>
-
-#include "platform.h"
-#include "common/time.h"
-#include "pg/pg.h"
-
-typedef struct vtxSettingsConfig_s {
-    uint8_t band;           // 1=A, 2=B, 3=E, 4=F(Airwaves/Fatshark), 5=Raceband
-    uint8_t channel;        // 1-8
-    uint8_t power;          // 0 = lowest
-    uint16_t freq;          // sets freq in MHz if band=0
-    uint8_t pitmode;        // enable/disable pitmode
-    uint16_t pitModeFreq;   // sets out-of-range pitmode frequency
-    uint8_t lowPowerDisarm;
-} vtxSettingsConfig_t;
-
-PG_DECLARE(vtxSettingsConfig_t, vtxSettingsConfig);
-
-void vtxInit(void);
-void vtxUpdate(timeUs_t currentTimeUs);
+bool smartAudioParseResponse(void);
+bool smartAudioGetSettings(void);
+bool smartAudioGetPitmodeFrequency(void);
+bool smartAudioSetPower(void);
+bool smartAudioSetFrequency(void);
+bool smartAudioProcessPitMode(void);
+void smartAudioSetPitMode(const bool pitModeEnable);
+bool smartAudioSetPitModeFrequency(void);
+bool smartAudioProviderInit(void);

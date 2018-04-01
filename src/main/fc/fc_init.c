@@ -149,6 +149,8 @@
 
 #include "io/rcdevice_cam.h"
 
+#include "vtx/vtxTramp.h"
+
 #ifdef USE_HARDWARE_REVISION_DETECTION
 #include "hardware_revision.h"
 #endif

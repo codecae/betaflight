@@ -44,9 +44,9 @@
 #include "pg/pg_ids.h"
 
 
-PG_REGISTER_WITH_RESET_TEMPLATE(vtxConfig_t, vtxConfig, PG_VTX_CONFIG, 1);
+PG_REGISTER_WITH_RESET_TEMPLATE(vtxControlConfig_t, vtxControlConfig, PG_VTX_CONTROL_CONFIG, 1);
 
-PG_RESET_TEMPLATE(vtxConfig_t, vtxConfig,
+PG_RESET_TEMPLATE(vtxControlConfig_t, vtxControlConfig,
 //    .vtxChannelActivationConditions = { 0 },
     .halfDuplex = true
 );
@@ -110,7 +110,7 @@ void vtxUpdateActivatedChannel(void)
         static uint8_t lastIndex = -1;
 
         for (uint8_t index = 0; index < MAX_CHANNEL_ACTIVATION_CONDITION_COUNT; index++) {
-            const vtxChannelActivationCondition_t *vtxChannelActivationCondition = &vtxConfig()->vtxChannelActivationConditions[index];
+            const vtxChannelActivationCondition_t *vtxChannelActivationCondition = &vtxControlConfig()->vtxChannelActivationConditions[index];
 
             if (isRangeActive(vtxChannelActivationCondition->auxChannelIndex, &vtxChannelActivationCondition->range)
                 && index != lastIndex) {

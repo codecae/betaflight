@@ -18,51 +18,23 @@
 #pragma once
 
 #include "drivers/serial.h"
+#include "interface/vtx.h"
 
 #define TRAMP_SERIAL_OPTIONS    SERIAL_NOT_INVERTED | SERIAL_BIDIR
 #define TRAMP_BAUD              9600
-#define TRAMP_PAYLOAD_LENGTH    12
+#define TRAMP_FRAME_LENGTH      16
+#define TRAMP_MIN_FREQUENCY     5000
+#define TRAMP_MAX_FREQUENCY     5999
 
-typedef struct trampSettings_s {
+struct vtxDeviceSettings_s {
     uint16_t frequency;
     uint16_t power;
     uint8_t raceModeEnabled;
     uint8_t pitModeEnabled;
-} __attribute__((packed)) trampSettings_t;
+};
 
-typedef struct trampFrameHeader_s {
-    uint8_t syncStart;
-    uint8_t command;
-} __attribute__((packed)) trampFrameHeader_t;
-
-#define TRAMP_HEADER_LENGTH sizeof(trampFrameHeader_t)
-
-typedef struct trampFrameFooter_s {
-    uint8_t crc;
-    uint8_t syncStop;
-} __attribute__((packed)) trampFrameFooter_t;
-
-typedef union trampPayload_u {
-    uint8_t buf[TRAMP_PAYLOAD_LENGTH];
-    trampSettings_t settings;
-    uint16_t frequency;
-    uint16_t power;
-    uint8_t active;
-} trampPayload_t;
-
-typedef struct trampFrame_s {
-    trampFrameHeader_t header;
-    trampPayload_t payload;
-    trampFrameFooter_t footer;
-} __attribute__((packed)) trampFrame_t;
-
-#define TRAMP_FRAME_LENGTH sizeof(trampFrame_t)
-
-STATIC_ASSERT(sizeof(trampFrameHeader_t) == 2, trampInterface_headerSizeMismatch);
-STATIC_ASSERT(sizeof(trampFrame_t) == 16, trampInterface_frameSizeMismatch);
-
-void trampFrameGetSettings(trampFrame_t *frame);
-void trampFrameSetFrequency(trampFrame_t *frame, const uint16_t frequency);
-void trampFrameSetPower(trampFrame_t *frame, const uint16_t power);
-void trampFrameSetActiveState(trampFrame_t *frame, const bool active);
-bool trampParseResponseBuffer(trampSettings_t *settings, const uint8_t *buffer, size_t bufferLen);
+bool trampFrameGetSettings(uint8_t *buf, size_t bufLen);
+bool trampFrameSetFrequency(uint8_t *buf, size_t bufLen, const uint16_t frequency);
+bool trampFrameSetPower(uint8_t *buf, size_t bufLen, const uint16_t power);
+bool trampFrameSetActiveState(uint8_t *buf, size_t bufLen, const bool active);
+bool trampParseResponseBuffer(vtxDeviceSettings_t *settings, const uint8_t *buf, size_t bufLen);

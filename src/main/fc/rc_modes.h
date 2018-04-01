@@ -72,6 +72,7 @@ typedef enum {
     BOXUSER2,
     BOXUSER3,
     BOXUSER4,
+    BOXVTXLOWPOWER,
     CHECKBOX_ITEM_COUNT
 } boxId_e;
 

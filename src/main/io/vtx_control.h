@@ -34,12 +34,12 @@ typedef struct vtxChannelActivationCondition_s {
     channelRange_t range;
 } vtxChannelActivationCondition_t;
 
-typedef struct vtxConfig_s {
+typedef struct vtxControlConfig_s {
     vtxChannelActivationCondition_t vtxChannelActivationConditions[MAX_CHANNEL_ACTIVATION_CONDITION_COUNT];
     uint8_t halfDuplex;
-} vtxConfig_t;
+} vtxControlConfig_t;
 
-PG_DECLARE(vtxConfig_t, vtxConfig);
+PG_DECLARE(vtxControlConfig_t, vtxControlConfig);
 
 void vtxControlInit(void);
 void vtxControlInputPoll(void);

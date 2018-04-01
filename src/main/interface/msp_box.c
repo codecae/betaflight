@@ -88,6 +88,7 @@ static const box_t boxes[CHECKBOX_ITEM_COUNT] = {
     { BOXUSER2, "USER2", 41 },
     { BOXUSER3, "USER3", 42 },
     { BOXUSER4, "USER4", 43 },
+    { BOXVTXLOWPOWER, "VTX LOW POWER", 44 },
 };
 
 // mask of enabled IDs, calculated on startup based on enabled features. boxId_e is used as bit index
@@ -263,6 +264,7 @@ void initActiveBoxIds(void)
 
 #if defined(USE_VTX_SMARTAUDIO) || defined(USE_VTX_TRAMP)
     BME(BOXVTXPITMODE);
+    BME(BOXVTXLOWPOWER);
 #endif
 
 #ifdef USE_PINIOBOX
