@@ -67,7 +67,8 @@ typedef enum {
 
 typedef enum {
     RC_SMOOTHING_INPUT_PT1,
-    RC_SMOOTHING_INPUT_BIQUAD
+    RC_SMOOTHING_INPUT_BIQUAD,
+    RC_SMOOTHING_INPUT_BOXCAR,
 } rcSmoothingInputFilter_e;
 
 typedef enum {

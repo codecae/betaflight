@@ -20,6 +20,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <string.h>
 #include <math.h>
 
 #include "platform.h"
@@ -72,6 +73,23 @@ enum {
 #define RC_SMOOTHING_IDENTITY_FREQUENCY 80         // Used in the formula to convert a BIQUAD cutoff frequency to PT1
 #define RC_SMOOTHING_FILTER_TRAINING_DELAY_MS 5000 // Wait 5 seconds after power to let the PID loop stabilize before starting average frame rate calculation
 #define RC_SMOOTHING_FILTER_TRAINING_SAMPLES 50
+#define RC_SMOOTHING_BOXCAR_QUEUE_SIZE_MAX 24
+
+typedef struct boxcarQueueItem_s {
+    float value;
+    uint16_t count;
+} boxcarQueueItem_t;
+
+typedef struct boxcarQueue_s {
+    boxcarQueueItem_t *queue;
+    uint8_t queueSize;
+    uint8_t maxQueueSize;
+    uint16_t windowSize;
+    uint16_t maxWindowSize;
+} boxcarQueue_t;
+
+static FAST_RAM_ZERO_INIT boxcarQueue_t rcSmoothingBoxcarQueue[4];
+static FAST_RAM_ZERO_INIT boxcarQueueItem_t rcSmoothingBoxcarQueueItems[4][RC_SMOOTHING_BOXCAR_QUEUE_SIZE_MAX];
 
 static FAST_RAM_ZERO_INIT uint16_t defaultInputCutoffFrequency;
 static FAST_RAM_ZERO_INIT uint16_t defaultDerivativeCutoffFrequency;
@@ -263,6 +281,42 @@ FAST_CODE uint8_t processRcInterpolation(void)
 }
 
 #ifdef USE_RC_SMOOTHING_FILTER
+
+void rcSmoothingBoxcarInit(boxcarQueue_t *boxcar, uint16_t maxWindowSize, uint8_t maxQueueSize, boxcarQueueItem_t *queue)
+{
+    boxcar->queue = queue;
+    boxcar->queueSize = 0;
+    boxcar->maxQueueSize = maxQueueSize;
+    boxcar->windowSize = 0;
+    boxcar->maxWindowSize = maxWindowSize;
+}
+
+FAST_CODE float rcSmoothingBoxcarUpdate(boxcarQueue_t *boxcar, float value)
+{
+    boxcarQueueItem_t *item = boxcar->queue;
+    if (item->value == value) {
+        item->count++;
+    } else {
+        memcpy(&boxcar->queue[1], boxcar->queue, sizeof(boxcarQueueItem_t) * (boxcar->maxQueueSize - 1));
+        item->value = value;
+        item->count = 1;
+        boxcar->queueSize = MIN(boxcar->maxQueueSize, boxcar->queueSize + 1);
+    }
+    if (boxcar->windowSize == boxcar->maxWindowSize) {
+        if(--boxcar->queue[boxcar->queueSize - 1].count < 1) {
+            --boxcar->queueSize;
+        }
+    } else {
+        ++boxcar->windowSize;
+    }
+    boxcarQueueItem_t qSum = { 0.0f, 0 };
+    for (int i=0; i<boxcar->queueSize; ++i, ++item) {
+        qSum.value += item->value * item->count;
+        qSum.count += item->count;
+    }
+    return qSum.value / qSum.count;
+}
+
 int calcRcSmoothingCutoff(float avgRxFrameTime, bool pt1)
 {
     if (avgRxFrameTime > 0) {
@@ -335,6 +389,11 @@ FAST_CODE uint8_t processRcSmoothingFilter(void)
                                 case RC_SMOOTHING_INPUT_PT1:
                                     pt1FilterInit(&rcCommandFilterPt1[i], pt1FilterGain(filterCutoffFrequency, dT));
                                     break;
+                                case RC_SMOOTHING_INPUT_BOXCAR: ;
+                                    const uint16_t maxWindowSize = avgRxFrameTime/dT;
+                                    rcSmoothingBoxcarInit(&rcSmoothingBoxcarQueue[i], maxWindowSize, RC_SMOOTHING_BOXCAR_QUEUE_SIZE_MAX, rcSmoothingBoxcarQueueItems[i]);
+                                    filterCutoffFrequency = 100;  // TODO: PG parameter
+                                    FALLTHROUGH;
                                 case RC_SMOOTHING_INPUT_BIQUAD:
                                 default:
                                     biquadFilterInitLPF(&rcCommandFilterBiquad[i], filterCutoffFrequency, targetPidLooptime);
@@ -356,6 +415,7 @@ FAST_CODE uint8_t processRcSmoothingFilter(void)
         // after training has completed then log the raw rc channel and the calculated
         // average rx frame rate that was used to calculate the automatic filter cutoffs
         DEBUG_SET(DEBUG_RC_SMOOTHING, 0, lrintf(lastRxData[rxConfig()->rc_smoothing_debug_axis]));
+        DEBUG_SET(DEBUG_RC_SMOOTHING, 2, lrintf(rcSmoothingBoxcarQueue[rxConfig()->rc_smoothing_debug_axis].queueSize));
         DEBUG_SET(DEBUG_RC_SMOOTHING, 3, calculatedFrameTimeAverageUs);
     }
 
@@ -366,6 +426,9 @@ FAST_CODE uint8_t processRcSmoothingFilter(void)
                     case RC_SMOOTHING_INPUT_PT1:
                         rcCommand[updatedChannel] = pt1FilterApply(&rcCommandFilterPt1[updatedChannel], lastRxData[updatedChannel]);
                         break;
+                    case RC_SMOOTHING_INPUT_BOXCAR:
+                        lastRxData[updatedChannel] = rcSmoothingBoxcarUpdate(&rcSmoothingBoxcarQueue[updatedChannel], lastRxData[updatedChannel]);  // in-place update to lastRxData
+                        FALLTHROUGH;
                     case RC_SMOOTHING_INPUT_BIQUAD:
                     default:
                         rcCommand[updatedChannel] = biquadFilterApply(&rcCommandFilterBiquad[updatedChannel], lastRxData[updatedChannel]);
