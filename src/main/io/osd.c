@@ -197,7 +197,8 @@ static const uint8_t osdElementDisplayOrder[] = {
     OSD_NUMERICAL_HEADING,
     OSD_NUMERICAL_VARIO,
     OSD_COMPASS_BAR,
-    OSD_ANTI_GRAVITY
+    OSD_ANTI_GRAVITY,
+	OSD_MOTOR_DIAG
 };
 
 PG_REGISTER_WITH_RESET_FN(osdConfig_t, osdConfig, PG_OSD_CONFIG, 3);
@@ -600,6 +601,12 @@ static bool osdDrawSingleElement(uint8_t item)
 
             break;
         }
+		
+    case OSD_MOTOR_DIAG:
+    {
+        tfp_sprintf(buff, "MDIAG %d", 0);
+        break;
+    }
 
     case OSD_CRAFT_NAME:
         // This does not strictly support iterative updating if the craft name changes at run time. But since the craft name is not supposed to be changing this should not matter, and blanking the entire length of the craft name string on update will make it impossible to configure elements to be displayed on the right hand side of the craft name.
