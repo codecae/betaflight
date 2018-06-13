@@ -604,7 +604,7 @@ static bool osdDrawSingleElement(uint8_t item)
 		
     case OSD_MOTOR_DIAG:
     {
-        tfp_sprintf(buff, "MDIAG %d", 0);
+        tfp_sprintf(buff, "MDIAG %3d %3d %3d %3d", (int)(motor[0] / motorOutputHigh * 100), (int)(motor[1] / motorOutputHigh * 100), (int)(motor[2] / motorOutputHigh * 100), (int)(motor[3] / motorOutputHigh * 100));
         break;
     }
 
