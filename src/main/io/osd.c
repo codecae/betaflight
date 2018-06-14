@@ -67,9 +67,7 @@
 
 #include "flight/position.h"
 #include "flight/imu.h"
-#ifdef USE_ESC_SENSOR
 #include "flight/mixer.h"
-#endif
 #include "flight/pid.h"
 
 #include "io/asyncfatfs/asyncfatfs.h"
