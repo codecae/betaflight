@@ -601,12 +601,13 @@ static bool osdDrawSingleElement(uint8_t item)
         }
 		
     case OSD_MOTOR_DIAG:
-        if( areMotorsRunning() ) {
+        if(areMotorsRunning()) {
             float motorSum = 0;
             int maxIdx = 0;
-            for( int i = 0; i < getMotorCount(); i++) {
-                if( motor[i] > motor[maxIdx] )
+            for(int i = 0; i < getMotorCount(); i++) {
+                if(motor[i] > motor[maxIdx]) {
                     maxIdx = i;
+                }
                 motorSum += motor[i];
             }
 
