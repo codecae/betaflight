@@ -603,25 +603,18 @@ static bool osdDrawSingleElement(uint8_t item)
         }
 		
     case OSD_MOTOR_DIAG:
-    {
         if( areMotorsRunning() ) {
-            int motorDiag[getMotorCount()];
-            int maxMotorPctValue = -1;
-            int avgMotorPctValue = 0;
-            int maxMotorIndex;
+            float motorSum = 0;
+            int maxIdx = 0;
             for( int i = 0; i < getMotorCount(); i++) {
-                motorDiag[i] = (int)(motor[i] / motorOutputHigh * 100);
-                if( motorDiag[i] > maxMotorPctValue ){
-                    maxMotorPctValue = motorDiag[i];
-                    maxMotorIndex = i;
-                }
-                avgMotorPctValue += motorDiag[i] / getMotorCount();
+                if( motor[i] > motor[maxIdx] )
+                    maxIdx = i;
+                motorSum += motor[i];
             }
 
-            tfp_sprintf(buff, "MAX M%d=%3d AVG=%3d", maxMotorIndex, maxMotorPctValue, avgMotorPctValue);
+            tfp_sprintf(buff, "MAX M%d=%3d AVG=%3d", maxIdx, (int)(motor[maxIdx]/motorOutputHigh*100), (int)(motorSum/getMotorCount()*100));
         }
         break;
-    }
 
     case OSD_CRAFT_NAME:
         // This does not strictly support iterative updating if the craft name changes at run time. But since the craft name is not supposed to be changing this should not matter, and blanking the entire length of the craft name string on update will make it impossible to configure elements to be displayed on the right hand side of the craft name.
