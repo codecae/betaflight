@@ -160,7 +160,9 @@ ledstrip_unittest_SRC := \
 ledstrip_unittest_DEFINES := \
         USE_LED_STRIP=
        
-       
+rlelzw_unittest_SRC := \
+		$(USER_DIR)/common/rle_lzw.c
+
 maths_unittest_SRC := \
 		$(USER_DIR)/common/maths.c
 
