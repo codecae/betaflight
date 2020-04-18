@@ -20,13 +20,13 @@
 
 #include "common/mtf_crle.h"
 
-static size_t cRleEncode(uint8_t *buf, const size_t bufLen)
+static size_t cRleEncode(char *buf, const size_t bufLen)
 {
-    uint8_t* cursor = buf;
-    for(int i = 0; i < bufLen; i++) {
+    char* cursor = buf;
+    for(unsigned int i = 0; i < bufLen; i++) {
         size_t runLength = 1;
-        const uint8_t c = buf[i];
-        for (int j = i + 1; j < bufLen; j++) {
+        const char c = buf[i];
+        for (unsigned int j = i + 1; j < bufLen; j++) {
             if (buf[j] == c) {
                 runLength++;
                 i++;
@@ -44,10 +44,10 @@ static size_t cRleEncode(uint8_t *buf, const size_t bufLen)
     return cursor - buf;
 }
 
-static size_t cRleDecode(const uint8_t *source, uint8_t *dest, const size_t sourceBufLen) {
-    const uint8_t* destStart = dest;
-    for (int i = 0; i < sourceBufLen; i++) {
-        const uint8_t c = source[i] & RLE_DICT_VALUE_MASK;
+static size_t cRleDecode(const char *source, char *dest, const size_t sourceBufLen) {
+    const char* destStart = dest;
+    for (unsigned int i = 0; i < sourceBufLen; i++) {
+        const char c = source[i] & RLE_DICT_VALUE_MASK;
         if (source[i] & RLE_CHAR_REPEATED_MASK) {
             uint8_t rep = source[++i];
             while(rep--) {
@@ -60,12 +60,12 @@ static size_t cRleDecode(const uint8_t *source, uint8_t *dest, const size_t sour
     return dest - destStart;
 }
 
-static size_t mtfEncode(uint8_t *dict, uint8_t *buf, const size_t bufLen) {
+static size_t mtfEncode(char *dict, const size_t dictLen, char *buf, const size_t bufLen) {
     size_t encodedLength = 0;
-    for (int i = 0; i < bufLen; i++) {
-        for (int j = 0; j < bufLen; j++) {
+    for (unsigned int i = 0; i < bufLen; i++) {
+        for (unsigned int j = 0; j < dictLen; j++) {
             if (buf[i] == dict[j]) {
-                const uint8_t tmp = *(dict + j);
+                const char tmp = *(dict + j);
                 memmove(dict + 1, dict, j);
                 dict[0] = tmp;
                 buf[i] = j;
@@ -77,12 +77,12 @@ static size_t mtfEncode(uint8_t *dict, uint8_t *buf, const size_t bufLen) {
     return encodedLength;
 }
 
-static size_t mtfDecode(uint8_t *dict, uint8_t *buf, const size_t bufLen) 
+static size_t mtfDecode(char *dict, char *buf, const size_t bufLen)
 {
     size_t decodedLength = 0;
-    for (int i = 0; i < bufLen; i++) {
+    for (unsigned int i = 0; i < bufLen; i++) {
         const uint8_t idx = buf[i];
-        const uint8_t tmp = dict[idx];
+        const char tmp = dict[idx];
         memmove(dict + 1, dict, idx);
         dict[0] = tmp;
         buf[i] = tmp;
@@ -92,14 +92,14 @@ static size_t mtfDecode(uint8_t *dict, uint8_t *buf, const size_t bufLen)
     return decodedLength;
 }
 
-size_t mtfCrleEncode(uint8_t *dict, uint8_t *buf, const size_t bufLen)
+size_t mtfCrleEncode(char *dict, size_t dictLen, char *buf, const size_t bufLen)
 {
-    const size_t mtfEncodedLength = mtfEncode(dict, buf, bufLen);
+    const size_t mtfEncodedLength = mtfEncode(dict, dictLen, buf, bufLen);
     return cRleEncode(buf, mtfEncodedLength);
 }
 
-size_t mtfCrleDecode(uint8_t *dict, const uint8_t *source, const size_t sourceBufLen, uint8_t *dest, const size_t destBufLen)
+size_t mtfCrleDecode(char *dict, const char *source, const size_t sourceBufLen, char *dest)
 {
     const size_t rleDecodedLength = cRleDecode(source, dest, sourceBufLen);
-    return mtfDecode(dict, dest, destBufLen);
+    return mtfDecode(dict, dest, rleDecodedLength);
 }

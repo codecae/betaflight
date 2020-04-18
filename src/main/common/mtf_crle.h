@@ -20,12 +20,12 @@
 
 #pragma once
 
-#include <stddef.h>
+#include "platform.h"
 #include <stdint.h>
 #include <string.h>
 
 #define RLE_CHAR_REPEATED_MASK      0x80
 #define RLE_DICT_VALUE_MASK         0x7F
 
-size_t mtfCrleEncode(uint8_t *dict, uint8_t *buf, const size_t bufLen);
-size_t mtfCrleDecode(uint8_t *dict, const uint8_t *source, const size_t sourceBufLen, uint8_t *dest, const size_t destBufLen);
+size_t mtfCrleEncode(char *dict, size_t dictLen, char *buf, const size_t bufLen);
+size_t mtfCrleDecode(char *dict, const char *source, const size_t sourceBufLen, char *dest);

@@ -348,10 +348,12 @@ static void crsfFrameDisplayPortRow(sbuf_t *dst, uint8_t row)
     char *rowStart = &crsfDisplayPortScreen()->buffer[row * buflen];
     const uint8_t frameLength = CRSF_FRAME_LENGTH_EXT_TYPE_CRC + buflen;
     */
-    uint8_t mtfOsdDict[] = " >-AEIOUBCDFGHJLKMNPQRSTVWXYZ01234567890&()_./%";
-    uint8_t buf[CRSF_DISPLAY_PORT_COLS_MAX];
-    memcpy(buf, &crsfDisplayPortScreen()->buffer[row * buflen], crsfDisplayPortScreen()->cols);
-    const size_t encodedLen = mtfCrleEncode(mtfOsdDict, buf, strlen(buf));
+    char mtfOsdDict[] = " >-AEIOUBCDFGHJLKMNPQRSTVWXYZ01234567890&()_./%";
+    char buf[CRSF_DISPLAY_PORT_COLS_MAX];
+    const uint8_t bufLen = crsfDisplayPortScreen()->cols;
+    memcpy(buf, &crsfDisplayPortScreen()->buffer[row * bufLen], bufLen);
+    const size_t encodedLen = mtfCrleEncode(mtfOsdDict, strlen(mtfOsdDict), buf, strlen(buf));
+    const uint8_t frameLength = CRSF_FRAME_LENGTH_EXT_TYPE_CRC + encodedLen;
     sbufWriteU8(dst, frameLength);
     sbufWriteU8(dst, CRSF_FRAMETYPE_DISPLAYPORT_CMD);
     sbufWriteU8(dst, CRSF_ADDRESS_RADIO_TRANSMITTER);
