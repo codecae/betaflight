@@ -24,6 +24,7 @@
 
 #include "platform.h"
 
+#define USE_TELEMETRY_CRSF
 #ifdef USE_TELEMETRY_CRSF
 
 #include "build/atomic.h"
@@ -39,6 +40,7 @@
 #include "common/printf.h"
 #include "common/streambuf.h"
 #include "common/utils.h"
+#include "common/mtf_crle.h"
 
 #include "cms/cms.h"
 
@@ -341,16 +343,22 @@ void crsfFrameDeviceInfo(sbuf_t *dst) {
 static void crsfFrameDisplayPortRow(sbuf_t *dst, uint8_t row)
 {
     uint8_t *lengthPtr = sbufPtr(dst);
+    /*
     uint8_t buflen = crsfDisplayPortScreen()->cols;
     char *rowStart = &crsfDisplayPortScreen()->buffer[row * buflen];
     const uint8_t frameLength = CRSF_FRAME_LENGTH_EXT_TYPE_CRC + buflen;
+    */
+    uint8_t mtfOsdDict[] = " >-AEIOUBCDFGHJLKMNPQRSTVWXYZ01234567890&()_./%";
+    uint8_t buf[CRSF_DISPLAY_PORT_COLS_MAX];
+    memcpy(buf, &crsfDisplayPortScreen()->buffer[row * buflen], crsfDisplayPortScreen()->cols);
+    const size_t encodedLen = mtfCrleEncode(mtfOsdDict, buf, strlen(buf));
     sbufWriteU8(dst, frameLength);
     sbufWriteU8(dst, CRSF_FRAMETYPE_DISPLAYPORT_CMD);
     sbufWriteU8(dst, CRSF_ADDRESS_RADIO_TRANSMITTER);
     sbufWriteU8(dst, CRSF_ADDRESS_FLIGHT_CONTROLLER);
     sbufWriteU8(dst, CRSF_DISPLAYPORT_SUBCMD_UPDATE);
     sbufWriteU8(dst, row);
-    sbufWriteData(dst, rowStart, buflen);
+    sbufWriteData(dst, buf, encodedLen);
     *lengthPtr = sbufPtr(dst) - lengthPtr;
 }
 
