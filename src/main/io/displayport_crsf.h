@@ -40,4 +40,5 @@ void crsfDisplayPortMenuOpen(void);
 void crsfDisplayPortMenuExit(void);
 void crsfDisplayPortRefresh(void);
 int crsfDisplayPortNextRow(void);
+int crsfDisplayPortAckRow(uint8_t row);
 void crsfDisplayPortSetDimensions(uint8_t rows, uint8_t cols);

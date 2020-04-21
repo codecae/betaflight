@@ -202,6 +202,13 @@ int crsfDisplayPortNextRow(void)
     return -1;
 }
 
+void crsfDisplayPortAckRow(uint8_t row) 
+{
+    if (row <= crsfScreen.rows) {
+        crsfScreen.pendingTransport[row] = false;
+    }
+}
+
 displayPort_t *displayPortCrsfInit()
 {
     crsfDisplayPortSetDimensions(CRSF_DISPLAY_PORT_ROWS_MAX, CRSF_DISPLAY_PORT_COLS_MAX);

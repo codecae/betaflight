@@ -61,10 +61,12 @@ enum {
     CRSF_DISPLAYPORT_SUBCMD_OPEN = 0x03,  // client request to open cms menu
     CRSF_DISPLAYPORT_SUBCMD_CLOSE = 0x04,  // client request to close cms menu
     CRSF_DISPLAYPORT_SUBCMD_POLL = 0x05,  // client request to poll/refresh cms menu
+    CRSF_DISPLAYPORT_SUBCMD_ACK = 0x06, // client row acknowledgement
 };
 
 enum {
     CRSF_DISPLAYPORT_OPEN_ROWS_OFFSET = 1,
+    CRSF_DISPLAYPORT_ROW_ACK_OFFSET = 1,
     CRSF_DISPLAYPORT_OPEN_COLS_OFFSET = 2,
 };
 

@@ -502,6 +502,10 @@ void crsfProcessDisplayPortCmd(uint8_t *frameStart)
     case CRSF_DISPLAYPORT_SUBCMD_POLL:
         crsfDisplayPortRefresh();
         break;
+    case CRSF_DISPLAYPORT_SUBCMD_ACK;
+        const uint8_t row =(*frameStart + CRSF_DISPLAYPORT_ROW_ACK_OFFSET);
+        crsfDisplayPortAckRow(row);
+        break;
     default:
         break;
     }
@@ -563,7 +567,7 @@ void handleCrsfTelemetry(timeUs_t currentTimeUs)
         crsfInitializeFrame(dst);
         crsfFrameDisplayPortRow(dst, nextRow);
         crsfFinalize(dst);
-        crsfDisplayPortScreen()->pendingTransport[nextRow] = false;
+        //crsfDisplayPortScreen()->pendingTransport[nextRow] = false;
         crsfLastCycleTime = currentTimeUs;
         return;
     }
