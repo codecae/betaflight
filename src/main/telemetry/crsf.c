@@ -128,6 +128,40 @@ bool handleCrsfMspFrameBuffer(uint8_t payloadSize, mspResponseFnPtr responseFn)
 }
 #endif
 
+#if defined(USE_CRSF_CMS_TELEMETRY)
+#define CRSF_DISPLAYPORT_MAX_CHUNKS         4
+#define CRSF_DISPLAYPORT_MAX_CHUNK_LENGTH   50
+#define CRSF_DISPLAYPORT_REFRESH_US         250000 // 250ms, 4Hz
+
+typedef struct crsfDisplayPortChunkRef_s {
+    uint8_t *ptr;
+    uint8_t length;
+} crsfDisplayPortChunkRef_t;
+
+typedef struct crsfDisplayPortChunks_s {
+    crsfDisplayPortChunkRef_t chunks[CRSF_DISPLAYPORT_MAX_CHUNKS];
+    uint8_t totalChunks;
+} crsfDisplayPortChunks_t;
+
+static crsfDisplayPortChunks_t crsfDisplayPortChunks;
+
+static void crsfProcessDisplayPortChunks(void) 
+{
+    crsfDisplayPortCompressBuffer();
+    crsfDisplayPortScreen_t *screen = crsfDisplayPortScreen();
+    const uint8_t wholeChunks = screen->compressedLength / CRSF_DISPLAYPORT_MAX_CHUNK_LENGTH;
+    const uint8_t remLength = screen->compressedLength % CRSF_DISPLAYPORT_MAX_CHUNK_LENGTH;
+    crsfDisplayPortChunks.totalChunks = (remLength > 0) ? wholeChunks + 1 : wholeChunks;
+    for (unsigned int i=0; i<crsfDisplayPortChunks.totalChunks; i++) {
+        const uint8_t currentChunk = i + 1;
+        const uint8_t length = (currentChunk > wholeChunks) ? remLength : CRSF_DISPLAYPORT_MAX_CHUNK_LENGTH;
+        crsfDisplayPortChunkRef_t* chunk = &crsfDisplayPortChunks.chunks[i];
+        chunk->ptr = &screen->compressedBuffer[i*CRSF_DISPLAYPORT_MAX_CHUNK_LENGTH];
+        chunk->length = length;
+    }
+}
+#endif
+
 static void crsfInitializeFrame(sbuf_t *dst)
 {
     dst->ptr = crsfFrame;
@@ -338,21 +372,36 @@ void crsfFrameDeviceInfo(sbuf_t *dst) {
 
 #if defined(USE_CRSF_CMS_TELEMETRY)
 
-static void crsfFrameDisplayPortRow(sbuf_t *dst, uint8_t row)
+static void crsfFrameDisplayPortChunk(sbuf_t *dst, const uint8_t chunkIdx)
 {
     uint8_t *lengthPtr = sbufPtr(dst);
-    uint8_t buflen = crsfDisplayPortScreen()->cols;
-    char *rowStart = &crsfDisplayPortScreen()->buffer[row * buflen];
-    const uint8_t frameLength = CRSF_FRAME_LENGTH_EXT_TYPE_CRC + buflen;
-    sbufWriteU8(dst, frameLength);
+    const uint8_t chunksRemaining = crsfDisplayPortChunks.totalChunks - (chunkIdx + 1);
+    const crsfDisplayPortChunkRef_t *chunk = &crsfDisplayPortChunks.chunks[chunkIdx]; 
+    sbufWriteU8(dst, 0);
     sbufWriteU8(dst, CRSF_FRAMETYPE_DISPLAYPORT_CMD);
     sbufWriteU8(dst, CRSF_ADDRESS_RADIO_TRANSMITTER);
     sbufWriteU8(dst, CRSF_ADDRESS_FLIGHT_CONTROLLER);
     sbufWriteU8(dst, CRSF_DISPLAYPORT_SUBCMD_UPDATE);
-    sbufWriteU8(dst, row);
-    sbufWriteData(dst, rowStart, buflen);
+    sbufWriteU8(dst, chunksRemaining);
+    sbufWriteData(dst, chunk->ptr, chunk->length);
     *lengthPtr = sbufPtr(dst) - lengthPtr;
 }
+
+// static void crsfFrameDisplayPortRow(sbuf_t *dst, uint8_t row)
+// {
+//     uint8_t *lengthPtr = sbufPtr(dst);
+//     uint8_t buflen = crsfDisplayPortScreen()->cols;
+//     char *rowStart = &crsfDisplayPortScreen()->buffer[row * buflen];
+//     const uint8_t frameLength = CRSF_FRAME_LENGTH_EXT_TYPE_CRC + buflen;
+//     sbufWriteU8(dst, frameLength);
+//     sbufWriteU8(dst, CRSF_FRAMETYPE_DISPLAYPORT_CMD);
+//     sbufWriteU8(dst, CRSF_ADDRESS_RADIO_TRANSMITTER);
+//     sbufWriteU8(dst, CRSF_ADDRESS_FLIGHT_CONTROLLER);
+//     sbufWriteU8(dst, CRSF_DISPLAYPORT_SUBCMD_UPDATE);
+//     sbufWriteU8(dst, row);
+//     sbufWriteData(dst, rowStart, buflen);
+//     *lengthPtr = sbufPtr(dst) - lengthPtr;
+// }
 
 static void crsfFrameDisplayPortClear(sbuf_t *dst)
 {
@@ -556,16 +605,27 @@ void handleCrsfTelemetry(timeUs_t currentTimeUs)
         crsfLastCycleTime = currentTimeUs;
         return;
     }
-    const int nextRow = crsfDisplayPortNextRow();
-    if (nextRow >= 0) {
-        sbuf_t crsfDisplayPortBuf;
-        sbuf_t *dst = &crsfDisplayPortBuf;
-        crsfInitializeFrame(dst);
-        crsfFrameDisplayPortRow(dst, nextRow);
-        crsfFinalize(dst);
-        crsfDisplayPortScreen()->pendingTransport[nextRow] = false;
-        crsfLastCycleTime = currentTimeUs;
-        return;
+    
+    static timeUs_t lastDisplayPortRefreshUs;
+    
+    if (crsfDisplayPortIsOpen() && (currentTimeUs >= lastDisplayPortRefreshUs + CRSF_DISPLAYPORT_REFRESH_US)) {
+        if (crsfDisplayPortScreen()->changed) {
+            crsfDisplayPortScreen()->changed = false;
+            crsfProcessDisplayPortChunks();
+        }
+        if (crsfDisplayPortScreen()->compressedLength > 0) {
+            sbuf_t crsfDisplayPortBuf;
+            sbuf_t *dst = &crsfDisplayPortBuf;
+            for(unsigned int i=0; i<crsfDisplayPortChunks.totalChunks; i++) {
+                crsfInitializeFrame(dst);
+                crsfFrameDisplayPortChunk(dst, i);
+                crsfFinalize(dst);
+                crsfRxSendTelemetryData();
+            }
+            lastDisplayPortRefreshUs = currentTimeUs;
+            crsfLastCycleTime = currentTimeUs;
+            return;
+        }
     }
 #endif
 

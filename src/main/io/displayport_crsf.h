@@ -28,18 +28,19 @@
 
 typedef struct crsfDisplayPortScreen_s {
     char buffer[CRSF_DISPLAY_PORT_MAX_BUFFER_SIZE];
-    char compressedBuffer[CRSF_DISPLAY_PORT_MAX_BUFFER_SIZE];
-    bool pendingTransport[CRSF_DISPLAY_PORT_ROWS_MAX];
+    uint8_t compressedBuffer[CRSF_DISPLAY_PORT_MAX_BUFFER_SIZE];
+    size_t compressedLength;
     uint8_t rows;
     uint8_t cols;
-    size_t compressedLength;
     bool reset;
+    bool changed;
 } crsfDisplayPortScreen_t;
 
 displayPort_t *displayPortCrsfInit(void);
 crsfDisplayPortScreen_t *crsfDisplayPortScreen(void);
+void crsfDisplayPortCompressBuffer(void);
 void crsfDisplayPortMenuOpen(void);
 void crsfDisplayPortMenuExit(void);
 void crsfDisplayPortRefresh(void);
-int crsfDisplayPortNextRow(void);
+bool crsfDisplayPortIsOpen(void);
 void crsfDisplayPortSetDimensions(uint8_t rows, uint8_t cols);

@@ -36,20 +36,17 @@
 
 #define CRSF_DISPLAY_PORT_OPEN_DELAY_MS     400
 #define CRSF_DISPLAY_PORT_CLEAR_DELAY_MS    45
-#define CRSF_DISPLAY_PORT_MTF_DICT_SIZE     47
 
 static crsfDisplayPortScreen_t crsfScreen;
 static timeMs_t delayTransportUntilMs = 0;
-const char crsfCmsDict[CRSF_DISPLAY_PORT_MTF_DICT_SIZE] = " >-AEIOUBCDFGHJLKMNPQRSTVWXYZ01234567890&()_./%";
 
 displayPort_t crsfDisplayPort;
 
-static void crsfDisplayPortCompressBuffer(void)
+void crsfDisplayPortCompressBuffer(void)
 {
-    char dict[CRSF_DISPLAY_PORT_MTF_DICT_SIZE];
-    const size_t dictLen = sizeof(dict);
+    uint8_t dict[] = " >-AEIOUBCDFGHJLKMNPQRSTVWXYZ01234567890&()_./%";
+    const size_t dictLen = strlen((char*)dict);
     const size_t bufLen = sizeof(crsfScreen.compressedBuffer);
-    memcpy(dict, crsfCmsDict, dictLen);
     crsfScreen.compressedLength = mtfCrleEncode(dict, dictLen, crsfScreen.compressedBuffer, bufLen);
 }
 
@@ -62,7 +59,7 @@ static int crsfClearScreen(displayPort_t *displayPort)
 {
     UNUSED(displayPort);
     memset(crsfScreen.buffer, ' ', sizeof(crsfScreen.buffer));
-    memset(crsfScreen.pendingTransport, 0, sizeof(crsfScreen.pendingTransport));
+    crsfScreen.compressedLength = 0;
     crsfScreen.reset = true;
     delayTransportUntilMs = millis() + CRSF_DISPLAY_PORT_CLEAR_DELAY_MS;
     return 0;
@@ -94,10 +91,9 @@ static int crsfWriteString(displayPort_t *displayPort, uint8_t col, uint8_t row,
     }
     const size_t truncLen = MIN((int)strlen(s), crsfScreen.cols-col);  // truncate at colCount
     char *rowStart = &crsfScreen.buffer[row * crsfScreen.cols + col];
-    crsfScreen.pendingTransport[row] = memcmp(rowStart, s, truncLen);
-    if (crsfScreen.pendingTransport[row]) {
+    crsfScreen.changed = memcmp(rowStart, s, truncLen);
+    if (crsfScreen.changed) {
         memcpy(rowStart, s, truncLen);
-
     }
     return 0;
 }
@@ -195,27 +191,18 @@ void crsfDisplayPortRefresh(void)
         crsfDisplayPortMenuOpen();
         return;
     }
-    memset(crsfScreen.pendingTransport, 1, crsfScreen.rows);
-    crsfScreen.reset = true;
+    crsfScreen.changed = true;
     delayTransportUntilMs = millis() + CRSF_DISPLAY_PORT_CLEAR_DELAY_MS;
 }
 
-int crsfDisplayPortNextRow(void)
+bool crsfDisplayPortIsOpen(void)
 {
-    const timeMs_t currentTimeMs = millis();
-    if (currentTimeMs < delayTransportUntilMs) {
-        return -1;
-    }
-    for(unsigned int i=0; i<CRSF_DISPLAY_PORT_ROWS_MAX; i++) {
-        if (crsfScreen.pendingTransport[i]) {
-            return i;
-        }
-    }
-    return -1;
+    return (bool)(cmsInMenu && (pCurrentDisplay == &crsfDisplayPort));
 }
 
 displayPort_t *displayPortCrsfInit()
 {
+    crsfScreen.compressedLength = 0;
     crsfDisplayPortSetDimensions(CRSF_DISPLAY_PORT_ROWS_MAX, CRSF_DISPLAY_PORT_COLS_MAX);
     displayInit(&crsfDisplayPort, &crsfDisplayPortVTable);
     return &crsfDisplayPort;
