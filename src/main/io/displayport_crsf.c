@@ -27,6 +27,7 @@
 
 #include "cms/cms.h"
 #include "common/maths.h"
+#include "common/mtf_crle.h"
 #include "common/printf.h"
 #include "common/time.h"
 #include "drivers/display.h"
@@ -35,11 +36,22 @@
 
 #define CRSF_DISPLAY_PORT_OPEN_DELAY_MS     400
 #define CRSF_DISPLAY_PORT_CLEAR_DELAY_MS    45
+#define CRSF_DISPLAY_PORT_MTF_DICT_SIZE     47
 
 static crsfDisplayPortScreen_t crsfScreen;
 static timeMs_t delayTransportUntilMs = 0;
+const char crsfCmsDict[CRSF_DISPLAY_PORT_MTF_DICT_SIZE] = " >-AEIOUBCDFGHJLKMNPQRSTVWXYZ01234567890&()_./%";
 
 displayPort_t crsfDisplayPort;
+
+static void crsfDisplayPortCompressBuffer(void)
+{
+    char dict[CRSF_DISPLAY_PORT_MTF_DICT_SIZE];
+    const size_t dictLen = sizeof(dict);
+    const size_t bufLen = sizeof(crsfScreen.compressedBuffer);
+    memcpy(dict, crsfCmsDict, dictLen);
+    crsfScreen.compressedLength = mtfCrleEncode(dict, dictLen, crsfScreen.compressedBuffer, bufLen);
+}
 
 static int crsfGrab(displayPort_t *displayPort)
 {
@@ -73,7 +85,6 @@ static int crsfScreenSize(const displayPort_t *displayPort)
     return displayPort->rows * displayPort->cols;
 }
 
-
 static int crsfWriteString(displayPort_t *displayPort, uint8_t col, uint8_t row, uint8_t attr, const char *s)
 {
     UNUSED(displayPort);
@@ -86,6 +97,7 @@ static int crsfWriteString(displayPort_t *displayPort, uint8_t col, uint8_t row,
     crsfScreen.pendingTransport[row] = memcmp(rowStart, s, truncLen);
     if (crsfScreen.pendingTransport[row]) {
         memcpy(rowStart, s, truncLen);
+
     }
     return 0;
 }
